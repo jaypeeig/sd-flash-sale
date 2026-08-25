@@ -2,9 +2,14 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
+import RequireAuth from "./components/RequireAuth";
 import { UserProvider } from "./context/UserContext.tsx";
 import "./index.css";
-import LoginPage from "./pages/login/LoginPage.tsx";
+import LiveSalePage from "./pages/live-sale";
+import LoginPage from "./pages/login";
+import NotFoundPage from "./pages/not-found";
+import OrdersPage from "./pages/orders";
+import UpcomingPage from "./pages/upcoming";
 
 const router = createBrowserRouter([
   {
@@ -13,15 +18,27 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <p>Minimal React Router SPA is ready.</p>,
+        element: <LiveSalePage />,
       },
       {
-        path: "about",
-        element: <p>Vite + React Router + Oxlint.</p>,
+        path: "upcoming",
+        element: <UpcomingPage />,
+      },
+      {
+        path: "orders",
+        element: (
+          <RequireAuth>
+            <OrdersPage />
+          </RequireAuth>
+        ),
       },
       {
         path: "login",
         element: <LoginPage />,
+      },
+      {
+        path: "*",
+        element: <NotFoundPage />,
       },
     ],
   },

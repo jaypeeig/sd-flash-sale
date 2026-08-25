@@ -7,10 +7,13 @@ const NavBar = () => {
   return (
     <nav className="flex items-center gap-3">
       <Link className="text-slate-900 transition-colors hover:text-slate-500" to="/">
-        Home
+        Live sale
       </Link>
-      <Link className="text-slate-900 transition-colors hover:text-slate-500" to="/about">
-        About
+      <Link className="text-slate-900 transition-colors hover:text-slate-500" to="/upcoming">
+        Upcoming
+      </Link>
+      <Link className="text-slate-900 transition-colors hover:text-slate-500" to="/orders">
+        Orders
       </Link>
       {email ? (
         <>
