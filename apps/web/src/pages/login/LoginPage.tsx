@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type { FormEvent } from "react";
+import type { SubmitEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "../context/user-context";
-import { isValidEmail } from "../lib/validateEmail";
+import { useUser } from "../../context/user-context";
+import { isValidEmail } from "../../lib/validateEmail";
 
 const LoginPage = () => {
   const { login } = useUser();
@@ -10,7 +10,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!isValidEmail(email)) {

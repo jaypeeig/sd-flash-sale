@@ -1,10 +1,5 @@
 import { createContext, useContext } from "react";
-
-export interface UserContextValue {
-  email: string | null;
-  login: (email: string) => void;
-  logout: () => void;
-}
+import type { UserContextValue } from "./user-context.types";
 
 export const UserContext = createContext<UserContextValue | null>(null);
 
