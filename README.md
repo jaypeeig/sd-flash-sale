@@ -2,7 +2,6 @@
 
 A single-product flash sale built for **crazy concurrency** no overselling, no duplicate purchases, and no “sorry, your order vanished” moments. Designed to **fail gracefully, not dramatically** when dependencies decide to take a coffee break.
 
-
 **Stack:** Turborepo · NestJS · React (react-router) · PostgreSQL · Redis ·
 Docker Compose · k6
 
@@ -37,8 +36,7 @@ Docker Compose · k6
 - Docker + Docker Compose
 - npm
 
-
-### 1. Local development 
+### 1. Local development
 
 ### 2. Running tests
 
