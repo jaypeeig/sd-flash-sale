@@ -18,6 +18,9 @@
     "@nestjs/platform-express": "^11.2.3",
     "@nestjs/swagger": "^11.4.7",
     "@scalar/nestjs-api-reference": "^1.2.16",
+    "@workspace/database": "*",
+    "@workspace/shared-types": "*",
+    "dotenv": "^17.4.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },

@@ -1,5 +1,6 @@
 import { defineConfig } from "drizzle-kit";
-import { getDatabaseUrl, loadEnv } from "./src/env";
+import { getDatabaseUrl } from "./src/env";
+import { loadEnv } from "./src/load-env";
 
 loadEnv();
 

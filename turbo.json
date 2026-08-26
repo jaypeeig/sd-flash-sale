@@ -15,7 +15,22 @@
     "db:seed": {
       "cache": false
     },
+    "db:setup": {
+      "cache": false
+    },
+    "db:up": {
+      "cache": false
+    },
+    "db:down": {
+      "cache": false
+    },
     "dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["API_PORT"]
+    },
+    "api#dev": {
+      "dependsOn": ["@workspace/database#db:up"],
       "cache": false,
       "persistent": true,
       "env": ["API_PORT"]
@@ -27,7 +42,7 @@
       "dependsOn": ["^lint:fix"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^build", "^typecheck"]
     },
     "test": {
       "dependsOn": ["^test"],
