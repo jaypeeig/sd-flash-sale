@@ -38,6 +38,26 @@ Docker Compose · k6
 
 ### 1. Local development
 
+```bash
+npm install
+
+# Copy the example env if you don't already have a local .env
+cp .env.example .env
+
+# Start Postgres (waits until it reports healthy)
+docker compose up -d
+
+# Generate + apply migrations, then seed some sample products
+npm run -w @workspace/database db:generate
+npm run -w @workspace/database db:migrate
+npm run -w @workspace/database db:seed
+
+# Run the app(s)
+npm run dev
+```
+
+Stop the database with `docker compose down` (add `-v` to also drop its volume and start from an empty DB).
+
 ### 2. Running tests
 
 ## Running the stress test (k6)
