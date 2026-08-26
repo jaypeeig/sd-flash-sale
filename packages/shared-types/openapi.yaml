@@ -49,9 +49,16 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Sale"
+                allOf:
+                  - $ref: "#/components/schemas/ApiEnvelope"
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Sale"
 
         "500":
           $ref: "#/components/responses/InternalServerError"
@@ -74,7 +81,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Sale"
+                allOf:
+                  - $ref: "#/components/schemas/ApiEnvelope"
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Sale"
 
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -125,35 +139,54 @@ paths:
         "200":
           description: >
             Purchase attempt processed successfully at the API level.
-            The business outcome is indicated by the `status` field.
+            The business outcome is indicated by the `data.status` field.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PurchaseResult"
+                allOf:
+                  - $ref: "#/components/schemas/ApiEnvelope"
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/PurchaseResult"
               examples:
                 success:
                   summary: Purchase successful
                   value:
-                    status: success
-                    message: You've successfully secured your item!
+                    statusCode: 200
+                    message: Purchase processed
+                    data:
+                      status: success
+                      message: You've successfully secured your item!
 
                 already_purchased:
                   summary: User has already purchased this sale
                   value:
-                    status: already_purchased
-                    message: You have already purchased this item.
+                    statusCode: 200
+                    message: Purchase processed
+                    data:
+                      status: already_purchased
+                      message: You have already purchased this item.
 
                 sold_out:
                   summary: Sale is sold out
                   value:
-                    status: sold_out
-                    message: Sorry, this item is sold out.
+                    statusCode: 200
+                    message: Purchase processed
+                    data:
+                      status: sold_out
+                      message: Sorry, this item is sold out.
 
                 sale_not_active:
                   summary: Sale is not currently active
                   value:
-                    status: sale_not_active
-                    message: This sale is not currently active.
+                    statusCode: 200
+                    message: Purchase processed
+                    data:
+                      status: sale_not_active
+                      message: This sale is not currently active.
 
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -195,21 +228,31 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/PurchaseRecord"
+                allOf:
+                  - $ref: "#/components/schemas/ApiEnvelope"
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/PurchaseRecord"
               example:
-                - id: 550e8400-e29b-41d4-a716-446655440010
-                  saleId: 550e8400-e29b-41d4-a716-446655440000
-                  product:
-                    id: 550e8400-e29b-41d4-a716-446655440001
-                    name: Field Recorder MK1
-                    description: A compact field recorder for professional audio recording.
-                    imageUrl: https://example.com/images/field-recorder.jpg
-                    price: "229.00"
-                  email: jaypee@example.com
-                  price: "189.00"
-                  purchasedAt: "2026-08-26T10:32:15Z"
+                statusCode: 200
+                message: Purchases retrieved successfully
+                data:
+                  - id: 550e8400-e29b-41d4-a716-446655440010
+                    saleId: 550e8400-e29b-41d4-a716-446655440000
+                    product:
+                      id: 550e8400-e29b-41d4-a716-446655440001
+                      name: Field Recorder MK1
+                      description: A compact field recorder for professional audio recording.
+                      imageUrl: https://example.com/images/field-recorder.jpg
+                      price: "229.00"
+                    email: jaypee@example.com
+                    price: "189.00"
+                    purchasedAt: "2026-08-26T10:32:15Z"
 
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -420,6 +463,28 @@ components:
           format: date-time
           example: "2026-08-26T10:32:15Z"
 
+    ApiEnvelope:
+      type: object
+      description: >
+        Common shape every successful response is wrapped in. Mirrors
+        the statusCode/message fields Nest's default exception filter
+        already puts on error responses (see ApiError), so the
+        top-level shape is consistent whether a request succeeds or
+        fails.
+      required:
+        - statusCode
+        - message
+      properties:
+        statusCode:
+          type: integer
+          description: HTTP status code.
+          example: 200
+
+        message:
+          type: string
+          description: Human-readable summary of the response.
+          example: Success
+
     ApiError:
       type: object
       required:
@@ -442,12 +507,41 @@ components:
           description: Standard HTTP error name.
           example: Internal Server Error
 
+    ZodIssue:
+      type: object
+      description: >
+        A single validation issue, in the shape zod's safeParse produces.
+        Additional fields (e.g. `format`, `pattern`, `expected`) may be
+        present depending on the kind of check that failed.
+      required:
+        - code
+        - message
+        - path
+      properties:
+        code:
+          type: string
+          description: Zod issue code identifying the kind of validation failure.
+          example: invalid_format
+
+        message:
+          type: string
+          description: Human-readable description of this specific issue.
+          example: Invalid email address
+
+        path:
+          type: array
+          description: Path (property name(s)) to the field that failed validation.
+          items:
+            type: string
+          example:
+            - email
+
     ApiValidationError:
       type: object
       required:
         - statusCode
         - message
-        - error
+        - errors
       properties:
         statusCode:
           type: integer
@@ -455,17 +549,15 @@ components:
           example: 400
 
         message:
-          type: array
-          description: Validation error messages.
-          items:
-            type: string
-          example:
-            - email must be an email
-
-        error:
           type: string
-          description: Standard HTTP error name.
-          example: Bad Request
+          description: Summary message — always "Validation failed".
+          example: Validation failed
+
+        errors:
+          type: array
+          description: One entry per field that failed validation.
+          items:
+            $ref: "#/components/schemas/ZodIssue"
 
   responses:
     BadRequest:
@@ -480,25 +572,37 @@ components:
               summary: Invalid email
               value:
                 statusCode: 400
-                message:
-                  - email must be an email
-                error: Bad Request
+                message: Validation failed
+                errors:
+                  - code: invalid_format
+                    format: email
+                    path:
+                      - email
+                    message: Invalid email address
 
             missing_email:
               summary: Missing email
               value:
                 statusCode: 400
-                message:
-                  - email should not be empty
-                error: Bad Request
+                message: Validation failed
+                errors:
+                  - code: invalid_type
+                    expected: string
+                    path:
+                      - email
+                    message: "Invalid input: expected string, received undefined"
 
             invalid_uuid:
               summary: Invalid sale ID
               value:
                 statusCode: 400
-                message:
-                  - id must be a UUID
-                error: Bad Request
+                message: Validation failed
+                errors:
+                  - code: invalid_format
+                    format: uuid
+                    path:
+                      - id
+                    message: Invalid UUID
 
     NotFound:
       description: >
