@@ -4,6 +4,7 @@ import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { apiReference } from "@scalar/nestjs-api-reference";
 import { config } from "dotenv";
+import { cleanupOpenApiDoc } from "nestjs-zod";
 import { AppModule } from "./app.module";
 
 const DEFAULT_PORT = 3000;
@@ -26,7 +27,7 @@ const bootstrap = async () => {
     )
     .setVersion("1.0.0")
     .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  const document = cleanupOpenApiDoc(SwaggerModule.createDocument(app, swaggerConfig));
 
   app.use(`/${DOCS_PATH}`, apiReference({ content: document }));
 
