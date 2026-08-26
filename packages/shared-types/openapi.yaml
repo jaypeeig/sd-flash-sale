@@ -1,0 +1,539 @@
+openapi: 3.0.3
+info:
+  title: Flash Sale System API
+  description: >
+    API for a multi-sale flash sale platform. Supports listing sales
+    filtered by phase (active/upcoming/past), sale detail, a user's
+    purchase history, and purchase attempts enforcing a strict
+    one-item-per-user rule under concurrent load.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+
+tags:
+  - name: Sales
+    description: Sale listing and detail
+  - name: Purchases
+    description: Purchase attempts and history
+
+paths:
+  /sales:
+    get:
+      operationId: getSales
+      tags:
+        - Sales
+      summary: List sales, optionally filtered by phase
+      description: >
+        Returns flash sales. When `status` is omitted, all sales are
+        returned. The `past` filter includes sales that have either
+        ended by time or sold out before their configured end time.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: >
+            Optional sale phase filter. `past` matches sales whose
+            derived phase is `ended` or `sold_out`.
+          schema:
+            type: string
+            enum:
+              - active
+              - upcoming
+              - past
+          example: active
+      responses:
+        "200":
+          description: List of sales matching the filter
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sale"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /sales/{id}:
+    get:
+      operationId: getSaleById
+      tags:
+        - Sales
+      summary: Get a single sale's detail
+      parameters:
+        - $ref: "#/components/parameters/SaleId"
+
+      responses:
+        "200":
+          description: Sale detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /sales/{id}/purchase:
+    post:
+      operationId: makePurchase
+      tags:
+        - Purchases
+      summary: Attempt to purchase one unit of the sale's product
+      description: >
+        Attempts to purchase one unit of the product associated with
+        the specified flash sale.
+
+        The purchase operation enforces the sale window, stock
+        availability, and one-purchase-per-user rule under concurrent
+        load.
+
+        Expected business outcomes return HTTP 200 and are represented
+        by the `status` field. These include a successful purchase,
+        an existing purchase by the same user, a sold-out sale, and
+        an inactive sale.
+
+        Unexpected application errors and dependency failures use
+        standard HTTP 4xx/5xx responses.
+      parameters:
+        - $ref: "#/components/parameters/SaleId"
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseRequest"
+            example:
+              email: jaypee@example.com
+
+      responses:
+        "200":
+          description: >
+            Purchase attempt processed successfully at the API level.
+            The business outcome is indicated by the `status` field.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseResult"
+              examples:
+                success:
+                  summary: Purchase successful
+                  value:
+                    status: success
+                    message: You've successfully secured your item!
+
+                already_purchased:
+                  summary: User has already purchased this sale
+                  value:
+                    status: already_purchased
+                    message: You have already purchased this item.
+
+                sold_out:
+                  summary: Sale is sold out
+                  value:
+                    status: sold_out
+                    message: Sorry, this item is sold out.
+
+                sale_not_active:
+                  summary: Sale is not currently active
+                  value:
+                    status: sale_not_active
+                    message: This sale is not currently active.
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /purchases:
+    get:
+      operationId: getPurchases
+      tags:
+        - Purchases
+      summary: Get all purchases made by a given user
+      description: >
+        Returns all successful purchases made by the specified user.
+
+        No authentication or session exists in this system, so the
+        `email` query parameter is explicitly supplied by the client
+        and is not inferred server-side.
+      parameters:
+        - name: email
+          in: query
+          required: true
+          description: Email address identifying the user.
+          schema:
+            type: string
+            format: email
+          example: jaypee@example.com
+
+      responses:
+        "200":
+          description: List of this user's purchases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PurchaseRecord"
+              example:
+                - id: 550e8400-e29b-41d4-a716-446655440010
+                  saleId: 550e8400-e29b-41d4-a716-446655440000
+                  product:
+                    id: 550e8400-e29b-41d4-a716-446655440001
+                    name: Field Recorder MK1
+                    description: A compact field recorder for professional audio recording.
+                    imageUrl: https://example.com/images/field-recorder.jpg
+                    price: "229.00"
+                  email: jaypee@example.com
+                  price: "189.00"
+                  purchasedAt: "2026-08-26T10:32:15Z"
+
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+components:
+  parameters:
+    SaleId:
+      name: id
+      in: path
+      required: true
+      description: Unique identifier of the flash sale.
+      schema:
+        type: string
+        format: uuid
+      example: 550e8400-e29b-41d4-a716-446655440000
+
+  schemas:
+    SalePhase:
+      type: string
+      description: >
+        Derived phase of the flash sale.
+
+        `sold_out` is distinct from `ended`: a sale can sell out
+        before its configured end time.
+
+        The phase is derived from stock and the current server time
+        and is not stored server-side.
+      enum:
+        - upcoming
+        - active
+        - ended
+        - sold_out
+
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - price
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440001
+
+        name:
+          type: string
+          example: Field Recorder MK1
+
+        description:
+          type: string
+          nullable: true
+          example: A compact field recorder for professional audio recording.
+
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://example.com/images/field-recorder.jpg
+
+        price:
+          type: string
+          description: >
+            Regular product price represented as a decimal string
+            to avoid floating-point rounding issues.
+          example: "229.00"
+
+    Sale:
+      type: object
+      required:
+        - id
+        - product
+        - phase
+        - salePrice
+        - totalStock
+        - remainingStock
+        - startsAt
+        - endsAt
+        - serverTime
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+
+        product:
+          $ref: "#/components/schemas/Product"
+
+        phase:
+          $ref: "#/components/schemas/SalePhase"
+
+        salePrice:
+          type: string
+          description: >
+            Price locked in for this flash sale. This may differ
+            from the product's regular price.
+          example: "189.00"
+
+        totalStock:
+          type: integer
+          minimum: 0
+          example: 50
+
+        remainingStock:
+          type: integer
+          minimum: 0
+          example: 37
+
+        startsAt:
+          type: string
+          format: date-time
+          example: "2026-08-26T10:00:00Z"
+
+        endsAt:
+          type: string
+          format: date-time
+          example: "2026-08-26T12:00:00Z"
+
+        serverTime:
+          type: string
+          format: date-time
+          description: >
+            Current server time. The frontend can use this to
+            calculate an accurate countdown without relying on
+            the client's local clock.
+          example: "2026-08-26T10:30:00Z"
+
+    PurchaseRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address identifying the purchasing user.
+          example: jaypee@example.com
+
+    PurchaseOutcome:
+      type: string
+      description: >
+        Result of the purchase attempt.
+
+        These are expected business outcomes and therefore are
+        returned as HTTP 200 responses.
+      enum:
+        - success
+        - already_purchased
+        - sold_out
+        - sale_not_active
+
+    PurchaseResult:
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          $ref: "#/components/schemas/PurchaseOutcome"
+
+        message:
+          type: string
+          description: Human-readable message safe to display to the user.
+          example: You've successfully secured your item!
+
+    PurchaseRecord:
+      type: object
+      required:
+        - id
+        - saleId
+        - product
+        - email
+        - price
+        - purchasedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440010
+
+        saleId:
+          type: string
+          format: uuid
+          description: Flash sale associated with the purchase.
+          example: 550e8400-e29b-41d4-a716-446655440000
+
+        product:
+          $ref: "#/components/schemas/Product"
+
+        email:
+          type: string
+          format: email
+          example: jaypee@example.com
+
+        price:
+          type: string
+          description: Sale price paid for the item.
+          example: "189.00"
+
+        purchasedAt:
+          type: string
+          format: date-time
+          example: "2026-08-26T10:32:15Z"
+
+    ApiError:
+      type: object
+      required:
+        - statusCode
+        - message
+        - error
+      properties:
+        statusCode:
+          type: integer
+          description: HTTP status code.
+          example: 500
+
+        message:
+          type: string
+          description: Human-readable error message.
+          example: Internal server error
+
+        error:
+          type: string
+          description: Standard HTTP error name.
+          example: Internal Server Error
+
+    ApiValidationError:
+      type: object
+      required:
+        - statusCode
+        - message
+        - error
+      properties:
+        statusCode:
+          type: integer
+          description: HTTP status code.
+          example: 400
+
+        message:
+          type: array
+          description: Validation error messages.
+          items:
+            type: string
+          example:
+            - email must be an email
+
+        error:
+          type: string
+          description: Standard HTTP error name.
+          example: Bad Request
+
+  responses:
+    BadRequest:
+      description: >
+        The request is invalid or failed request validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiValidationError"
+          examples:
+            invalid_email:
+              summary: Invalid email
+              value:
+                statusCode: 400
+                message:
+                  - email must be an email
+                error: Bad Request
+
+            missing_email:
+              summary: Missing email
+              value:
+                statusCode: 400
+                message:
+                  - email should not be empty
+                error: Bad Request
+
+            invalid_uuid:
+              summary: Invalid sale ID
+              value:
+                statusCode: 400
+                message:
+                  - id must be a UUID
+                error: Bad Request
+
+    NotFound:
+      description: >
+        The requested resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            statusCode: 404
+            message: Sale not found
+            error: Not Found
+
+    InternalServerError:
+      description: >
+        An unexpected server-side error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            statusCode: 500
+            message: Internal server error
+            error: Internal Server Error
+
+    ServiceUnavailable:
+      description: >
+        A required dependency is unavailable and the request could
+        not be safely processed. The system fails closed to prevent
+        unsafe purchase processing.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            statusCode: 503
+            message: Service temporarily unavailable
+            error: Service Unavailable
