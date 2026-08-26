@@ -1,0 +1,146 @@
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  DatabaseErrorCode,
+  products,
+  purchases,
+  sales,
+  type PurchaseRow,
+} from "@workspace/database";
+import type { PurchaseRecord, PurchaseResult } from "@workspace/shared-types";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { DATABASE_CONNECTION } from "../database/database.constants";
+import type { Database } from "../database/database.types";
+import { isPgErrorWithCode, POSTGRES_UNIQUE_VIOLATION } from "../database/pg-error";
+import {
+  ALREADY_PURCHASED_RESULT,
+  SALE_NOT_ACTIVE_RESULT,
+  SOLD_OUT_RESULT,
+} from "./purchases.constants";
+import { SoldOutError } from "./purchases.exceptions";
+
+@Injectable()
+export class PurchasesService {
+  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Database) {}
+
+  async purchase(saleId: string, email: string): Promise<PurchaseResult> {
+    const now = new Date();
+
+    const [sale] = await this.db
+      .select({
+        startsAt: sales.startsAt,
+        endsAt: sales.endsAt,
+        remainingStock: sales.remainingStock,
+        salePrice: sales.salePrice,
+        cancelledAt: sales.cancelledAt,
+        productId: products.id,
+        productName: products.name,
+        productDescription: products.description,
+        productImageUrl: products.imageUrl,
+        productPrice: products.price,
+      })
+      .from(sales)
+      .innerJoin(products, eq(sales.productId, products.id))
+      .where(eq(sales.id, saleId));
+
+    if (!sale) {
+      throw new NotFoundException("Sale not found");
+    }
+
+    if (sale.cancelledAt !== null || now < sale.startsAt || now >= sale.endsAt) {
+      return SALE_NOT_ACTIVE_RESULT;
+    }
+
+    if (sale.remainingStock <= 0) {
+      return SOLD_OUT_RESULT;
+    }
+
+    try {
+      // Insert first, decrement second: a duplicate purchase or a purchase
+      // outside the sale window (trigger-enforced) is then rejected before
+      // ever touching — and contending on — the shared stock counter.
+      const purchaseRow = await this.db.transaction(async (tx): Promise<PurchaseRow> => {
+        const [inserted] = await tx.insert(purchases).values({ saleId, email }).returning();
+
+        const [updated] = await tx
+          .update(sales)
+          .set({ remainingStock: sql`${sales.remainingStock} - 1` })
+          .where(and(eq(sales.id, saleId), gt(sales.remainingStock, 0)))
+          .returning({ remainingStock: sales.remainingStock });
+
+        if (!updated) {
+          throw new SoldOutError();
+        }
+
+        return inserted;
+      });
+
+      const purchase: PurchaseRecord = {
+        id: purchaseRow.id,
+        saleId,
+        product: {
+          id: sale.productId,
+          name: sale.productName,
+          description: sale.productDescription,
+          imageUrl: sale.productImageUrl,
+          price: sale.productPrice,
+        },
+        email: purchaseRow.email,
+        price: sale.salePrice,
+        purchasedAt: purchaseRow.purchasedAt.toISOString(),
+      };
+
+      return {
+        status: "success",
+        message: "You've successfully secured your item!",
+        purchase,
+      };
+    } catch (error) {
+      if (error instanceof SoldOutError) {
+        return SOLD_OUT_RESULT;
+      }
+      if (isPgErrorWithCode(error, POSTGRES_UNIQUE_VIOLATION)) {
+        return ALREADY_PURCHASED_RESULT;
+      }
+      if (isPgErrorWithCode(error, DatabaseErrorCode.PURCHASE_OUTSIDE_SALE_WINDOW)) {
+        return SALE_NOT_ACTIVE_RESULT;
+      }
+      throw error;
+    }
+  }
+
+  async findByEmail(email: string): Promise<PurchaseRecord[]> {
+    const rows = await this.db
+      .select({
+        id: purchases.id,
+        saleId: purchases.saleId,
+        email: purchases.email,
+        purchasedAt: purchases.purchasedAt,
+        salePrice: sales.salePrice,
+        productId: products.id,
+        productName: products.name,
+        productDescription: products.description,
+        productImageUrl: products.imageUrl,
+        productPrice: products.price,
+      })
+      .from(purchases)
+      .innerJoin(sales, eq(purchases.saleId, sales.id))
+      .innerJoin(products, eq(sales.productId, products.id))
+      .where(eq(purchases.email, email))
+      .orderBy(desc(purchases.purchasedAt));
+
+    return rows.map((row) => ({
+      id: row.id,
+      saleId: row.saleId,
+      product: {
+        id: row.productId,
+        name: row.productName,
+        description: row.productDescription,
+        imageUrl: row.productImageUrl,
+        price: row.productPrice,
+      },
+      email: row.email,
+      price: row.salePrice,
+      purchasedAt: row.purchasedAt.toISOString(),
+    }));
+  }
+}
