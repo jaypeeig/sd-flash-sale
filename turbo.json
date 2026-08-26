@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["NODE_ENV"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -16,7 +17,8 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": ["API_PORT"]
     },
     "lint": {
       "dependsOn": ["^lint"]

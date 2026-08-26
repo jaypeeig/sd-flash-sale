@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    /* Node resolution — NOT "bundler": nothing bundles this, tsc emits plain
+       CommonJS for Node. nodenext also surfaces ESM-only imports at typecheck. */
+    "moduleResolution": "nodenext",
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* NestJS DI. Deliberately NOT set here (both break Nest):
+       - erasableSyntaxOnly: bans constructor parameter properties
+       - verbatimModuleSyntax: preserves type-only imports, corrupting DI metadata */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}
