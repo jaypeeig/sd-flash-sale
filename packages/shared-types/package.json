@@ -1,0 +1,17 @@
+{
+  "name": "@workspace/shared-types",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/contract.ts",
+  "types": "./src/contract.ts",
+  "scripts": {
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "oxlint": "^1.80.0",
+    "typescript": "~6.0.2"
+  }
+}
