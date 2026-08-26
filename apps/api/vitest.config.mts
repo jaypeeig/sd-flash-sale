@@ -17,5 +17,11 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     setupFiles: ["reflect-metadata"],
+    env: {
+      // DatabaseModule reads this as soon as AppModule is compiled — pg's
+      // Pool connects lazily, so no real database is needed for tests that
+      // never issue a query (e.g. health.controller.test.ts).
+      DATABASE_URL: "postgresql://test:test@localhost:5432/test",
+    },
   },
 });

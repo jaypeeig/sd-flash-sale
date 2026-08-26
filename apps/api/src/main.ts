@@ -1,12 +1,18 @@
+import { resolve } from "node:path";
 import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { apiReference } from "@scalar/nestjs-api-reference";
+import { config } from "dotenv";
 import { AppModule } from "./app.module";
 
 const DEFAULT_PORT = 3000;
 const GLOBAL_PREFIX = "api";
 const DOCS_PATH = "docs";
+
+// Must run before AppModule is compiled — DatabaseModule's provider reads
+// DATABASE_URL as soon as Nest instantiates it inside NestFactory.create().
+config({ path: resolve(process.cwd(), "../../.env") });
 
 const bootstrap = async () => {
   const app = await NestFactory.create(AppModule);
