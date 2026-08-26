@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, integer, numeric, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
+import { check, index, integer, numeric, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
 import { products } from "./products";
 
 export const sales = pgTable(
@@ -26,5 +26,9 @@ export const sales = pgTable(
     check("sales_remaining_stock_check", sql`${table.remainingStock} >= 0`),
     check("sales_end_after_start", sql`${table.endsAt} > ${table.startsAt}`),
     check("sales_remaining_lte_total", sql`${table.remainingStock} <= ${table.totalStock}`),
+    // Sale listing/filtering (active/upcoming/past) queries by these
+    // time bounds — not by anything already covered by the PK/FK indexes.
+    index("idx_sales_starts_at").on(table.startsAt),
+    index("idx_sales_ends_at").on(table.endsAt),
   ],
 );

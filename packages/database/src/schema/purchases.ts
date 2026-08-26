@@ -14,6 +14,9 @@ export const purchases = pgTable(
       .notNull()
       .references(() => sales.id, { onDelete: "restrict" }),
     email: citext("email").notNull(), // case-insensitive: a@x.com == A@X.com
+    // Checked against the sale's starts_at/ends_at by the
+    // trg_purchases_within_sale_period DB trigger — a cross-table rule
+    // a plain CHECK constraint can't express.
     purchasedAt: timestamp("purchased_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [unique("purchases_one_per_user_per_sale").on(table.saleId, table.email)],
