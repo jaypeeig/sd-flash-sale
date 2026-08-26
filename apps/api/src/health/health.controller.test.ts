@@ -30,8 +30,12 @@ describe("Given the bootstrapped application", () => {
       expect(response.status).toBe(200);
     });
 
+    it("Then it wraps the payload in the response envelope", () => {
+      expect(response.body.statusCode).toBe(200);
+    });
+
     it("Then it reports an ok status", () => {
-      expect(response.body.status).toBe("ok");
+      expect(response.body.data.status).toBe("ok");
     });
   });
 
