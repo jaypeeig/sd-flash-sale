@@ -39,8 +39,7 @@ export class PurchasesService {
   ) {}
 
   async purchase(saleId: string, email: string): Promise<PurchaseResult> {
-    // — skips straight to the Postgres path rather than waiting out a
-    // doomed Lua call when Redis is known to be down.
+    // XXX: Skips straight to the Postgres path rather than waiting for Redis to load the sale, if Redis is down or not ready. This is
     if (this.redis.status !== "ready") {
       return this.purchaseViaPostgres(saleId, email);
     }
