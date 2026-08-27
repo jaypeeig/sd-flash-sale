@@ -1,5 +1,5 @@
 {
-  "name": "@workspace/database",
+  "name": "@workspace/redis",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,26 +8,20 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json && npm run build:pkg-json",
     "build:pkg-json": "node -e \"require('fs').writeFileSync('dist/package.json', JSON.stringify({type:'commonjs'}))\"",
-    "db:up": "docker compose -f ../../docker-compose.yml --project-directory ../.. up -d --wait postgres",
-    "db:down": "docker compose -f ../../docker-compose.yml --project-directory ../.. down postgres",
-    "db:setup": "npm run db:up && npm run db:migrate && npm run db:seed",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/scripts/seed.ts",
-    "db:studio": "drizzle-kit studio",
+    "redis:up": "docker compose -f ../../docker-compose.yml --project-directory ../.. up -d --wait redis",
+    "redis:down": "docker compose -f ../../docker-compose.yml --project-directory ../.. down redis",
+    "redis:cli": "docker compose -f ../../docker-compose.yml --project-directory ../.. exec redis redis-cli",
+    "redis:flush": "tsx src/scripts/flush.ts",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.2",
-    "pg": "^8.23.0"
+    "ioredis": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
-    "@types/pg": "^8.23.1",
     "dotenv": "^17.4.2",
-    "drizzle-kit": "^0.31.10",
     "oxlint": "^1.80.0",
     "tsx": "^4.23.12",
     "typescript": "~6.0.2"

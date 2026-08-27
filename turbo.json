@@ -24,13 +24,22 @@
     "db:down": {
       "cache": false
     },
+    "redis:up": {
+      "cache": false
+    },
+    "redis:down": {
+      "cache": false
+    },
+    "redis:flush": {
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true,
       "env": ["API_PORT"]
     },
     "api#dev": {
-      "dependsOn": ["@workspace/database#db:up"],
+      "dependsOn": ["@workspace/database#db:up", "@workspace/redis#redis:up"],
       "cache": false,
       "persistent": true,
       "env": ["API_PORT"]
@@ -49,11 +58,11 @@
       "outputs": ["coverage/**"]
     },
     "test:e2e": {
-      "dependsOn": ["^build", "@workspace/database#db:up"],
+      "dependsOn": ["^build", "@workspace/database#db:up", "@workspace/redis#redis:up"],
       "cache": false
     },
     "load-test": {
-      "dependsOn": ["^build", "@workspace/database#db:up"],
+      "dependsOn": ["^build", "@workspace/database#db:up", "@workspace/redis#redis:up"],
       "cache": false
     }
   }

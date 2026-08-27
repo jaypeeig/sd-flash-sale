@@ -1,0 +1,5 @@
+export const RedisErrorCode = {
+  CONNECTION_REFUSED: "ECONNREFUSED",
+  CONNECTION_RESET: "ECONNRESET",
+  TIMEOUT: "ETIMEDOUT",
+} as const;

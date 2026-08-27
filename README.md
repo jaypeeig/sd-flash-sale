@@ -44,7 +44,7 @@ npm install
 # Copy the example env if you don't already have a local .env
 cp .env.example .env
 
-# Start Postgres (waits until it reports healthy)
+# Start Postgres + Redis (waits until both report healthy)
 docker compose up -d
 
 # Generate + apply migrations, then seed some sample products
@@ -56,7 +56,9 @@ npm run -w @workspace/database db:seed
 npm run dev
 ```
 
-Stop the database with `docker compose down` (add `-v` to also drop its volume and start from an empty DB).
+Stop everything with `docker compose down` (add `-v` to also drop volumes and start from empty). To
+stop just one service, use its package's scoped script instead — `npm run -w @workspace/database db:down`
+or `npm run -w @workspace/redis redis:down`.
 
 To run a single app instead of the whole graph, target its workspace directly with `-w`:
 
@@ -94,6 +96,7 @@ Run the API in production mode first — `nest start --watch` isn't representati
 
 ```bash
 npm run -w @workspace/database db:up
+npm run -w @workspace/redis redis:up
 npm run -w api build && npm run -w api start &
 ```
 
