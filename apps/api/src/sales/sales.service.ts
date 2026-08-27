@@ -1,42 +1,64 @@
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { products, sales } from "@workspace/database";
-import type { GetSalesParams, Sale, SalePhase } from "@workspace/shared-types";
-import { and, eq, gt, isNull, lte, or, SQL, sql } from "drizzle-orm";
+import type { GetSalesParams, Sale } from "@workspace/shared-types";
+import type { Cache } from "cache-manager";
+import { and, eq, gt, isNull, lte, or } from "drizzle-orm";
 import { DATABASE_CONNECTION } from "../database/database.constants";
 import type { Database } from "../database/database.types";
-import type { SaleSelection } from "./sales.types";
+import type { SaleRow, SaleSelection } from "./sales.types";
 import { mapRowToSale } from "./sales.utils";
+
+// XXX: sale rows only ever move forward (stock down, cancelledAt set once),
+// so a short TTL is enough to cut repeat lookups without ever serving a
+// contradiction. Misses are never cached — an unknown id must keep hitting
+// the DB so the cache can't be grown with garbage ids.
+const SALE_CACHE_TTL_MS = 1000;
+
+const saleCacheKey = (id: string) => `sale:${id}`;
+
+const SALE_COLUMNS: SaleSelection = {
+  id: sales.id,
+  salePrice: sales.salePrice,
+  totalStock: sales.totalStock,
+  remainingStock: sales.remainingStock,
+  startsAt: sales.startsAt,
+  endsAt: sales.endsAt,
+  cancelledAt: sales.cancelledAt,
+  productId: products.id,
+  productName: products.name,
+  productDescription: products.description,
+  productImageUrl: products.imageUrl,
+  productPrice: products.price,
+};
 
 @Injectable()
 export class SalesService {
-  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Database) {}
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Database,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
-  private phaseExpression(now: Date): SQL<SalePhase> {
-    return sql<SalePhase>`
-      case
-        when ${sales.startsAt} > ${now} then 'upcoming'
-        when ${sales.endsAt} <= ${now} then 'ended'
-        when ${sales.remainingStock} <= 0 then 'sold_out'
-        else 'active'
-      end
-    `;
-  }
+  // Shared by findById and PurchasesService.purchase() — the raw row,
+  // cached, with no window/cancellation filtering applied. Each caller
+  // decides what "not found" means for its own response shape.
+  async findRowById(id: string): Promise<SaleRow | undefined> {
+    const cached = await this.cache.get<SaleRow>(saleCacheKey(id));
+    if (cached) {
+      return cached;
+    }
 
-  private selectSaleColumns(now: Date): SaleSelection {
-    return {
-      id: sales.id,
-      phase: this.phaseExpression(now),
-      salePrice: sales.salePrice,
-      totalStock: sales.totalStock,
-      remainingStock: sales.remainingStock,
-      startsAt: sales.startsAt,
-      endsAt: sales.endsAt,
-      productId: products.id,
-      productName: products.name,
-      productDescription: products.description,
-      productImageUrl: products.imageUrl,
-      productPrice: products.price,
-    };
+    const [row] = await this.db
+      .select(SALE_COLUMNS)
+      .from(sales)
+      .innerJoin(products, eq(sales.productId, products.id))
+      .where(eq(sales.id, id));
+
+    if (row) {
+      await this.cache.set(saleCacheKey(id), row, SALE_CACHE_TTL_MS);
+    }
+
+    return row;
   }
 
   async findAll(status?: GetSalesParams["status"]): Promise<Sale[]> {
@@ -67,29 +89,21 @@ export class SalesService {
     );
 
     const rows = await this.db
-      .select(this.selectSaleColumns(now))
+      .select(SALE_COLUMNS)
       .from(sales)
       .innerJoin(products, eq(sales.productId, products.id))
       .where(and(...conditions));
 
-    const serverTime = now.toISOString();
-
-    return rows.map((row) => mapRowToSale(row, serverTime));
+    return rows.map((row) => mapRowToSale(row, now));
   }
 
   async findById(id: string): Promise<Sale> {
-    const now = new Date();
+    const row = await this.findRowById(id);
 
-    const [row] = await this.db
-      .select(this.selectSaleColumns(now))
-      .from(sales)
-      .innerJoin(products, eq(sales.productId, products.id))
-      .where(and(eq(sales.id, id), isNull(sales.cancelledAt)));
-
-    if (!row) {
+    if (!row || row.cancelledAt !== null) {
       throw new NotFoundException("Sale not found");
     }
 
-    return mapRowToSale(row, now.toISOString());
+    return mapRowToSale(row, new Date());
   }
 }

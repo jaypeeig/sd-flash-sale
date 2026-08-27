@@ -1,16 +1,14 @@
 import type { products, sales } from "@workspace/database";
-import type { SalePhase } from "@workspace/shared-types";
-import type { SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 
 export interface SaleRow {
   id: string;
-  phase: SalePhase;
   salePrice: string;
   totalStock: number;
   remainingStock: number;
   startsAt: Date;
   endsAt: Date;
+  cancelledAt: Date | null;
   productId: string;
   productName: string;
   productDescription: string | null;
@@ -19,14 +17,14 @@ export interface SaleRow {
 }
 
 export interface SaleSelection {
-  [key: string]: PgColumn | SQL;
+  [key: string]: PgColumn;
   id: typeof sales.id;
-  phase: SQL<SalePhase>;
   salePrice: typeof sales.salePrice;
   totalStock: typeof sales.totalStock;
   remainingStock: typeof sales.remainingStock;
   startsAt: typeof sales.startsAt;
   endsAt: typeof sales.endsAt;
+  cancelledAt: typeof sales.cancelledAt;
   productId: typeof products.id;
   productName: typeof products.name;
   productDescription: typeof products.description;

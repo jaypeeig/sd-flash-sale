@@ -1,5 +1,7 @@
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Test } from "@nestjs/testing";
 import { createDatabase } from "@workspace/database";
+import type { Cache } from "cache-manager";
 import { AppModule } from "../../src/app.module";
 import { DATABASE_CONNECTION } from "../../src/database/database.constants";
 import { assertTestDatabaseUrl, truncateAll } from "./test-database";
@@ -27,11 +29,15 @@ export const bootstrapTestApp = async (): Promise<TestApp> => {
   // listening at the same instant that they race to listen() it themselves.
   await app.listen(0);
 
+  const cache = moduleRef.get<Cache>(CACHE_MANAGER);
+
   return {
     app,
     server: app.getHttpServer(),
     db,
-    reset: () => truncateAll(db, databaseUrl),
+    // Cached sale rows must not survive a truncate — otherwise a later test
+    // reusing the same id could be served a row from a deleted sale.
+    reset: () => Promise.all([truncateAll(db, databaseUrl), cache.clear()]).then(() => undefined),
     close: async () => {
       await app.close();
       await pool.end();
