@@ -12,11 +12,14 @@
     "redis:down": "docker compose -f ../../docker-compose.yml --project-directory ../.. down redis",
     "redis:cli": "docker compose -f ../../docker-compose.yml --project-directory ../.. exec redis redis-cli",
     "redis:flush": "tsx src/scripts/flush.ts",
+    "redis:sync": "tsx src/scripts/sync-sale.ts",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@workspace/database": "*",
+    "drizzle-orm": "^0.45.2",
     "ioredis": "^6.0.0"
   },
   "devDependencies": {

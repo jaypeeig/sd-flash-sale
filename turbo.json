@@ -33,6 +33,9 @@
     "redis:flush": {
       "cache": false
     },
+    "redis:sync": {
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true,

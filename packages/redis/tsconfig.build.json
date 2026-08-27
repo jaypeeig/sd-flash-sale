@@ -13,10 +13,16 @@
     "src/index.ts",
     "src/client.ts",
     "src/client.constants.ts",
+    "src/client.types.ts",
     "src/env.ts",
     "src/errors.ts",
     "src/errors.types.ts",
-    "src/keys.ts"
+    "src/keys.ts",
+    "src/normalize-email.ts",
+    "src/recovery.ts",
+    "src/release-purchase.ts",
+    "src/reserve-purchase.ts",
+    "src/sync.ts"
   ],
   "exclude": ["src/scripts", "src/load-env.ts", "src/**/*.test.ts"]
 }
