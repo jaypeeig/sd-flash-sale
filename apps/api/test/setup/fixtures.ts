@@ -46,7 +46,10 @@ const windowForPhase = (phase: SalePhaseFixture, now: number): { startsAt: Date;
   }
 };
 
-export const createSale = async (db: Database, options: CreateSaleOptions = {}): Promise<SaleRow> => {
+export const createSale = async (
+  db: Database,
+  options: CreateSaleOptions = {},
+): Promise<SaleRow> => {
   const phase = options.phase ?? "active";
   const now = Date.now();
   const { startsAt, endsAt } = windowForPhase(phase, now);

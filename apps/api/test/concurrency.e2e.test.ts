@@ -80,9 +80,7 @@ describe("Given the bootstrapped application with a real database", () => {
 
       beforeEach(async () => {
         outcomes = await Promise.all(
-          Array.from({ length: concurrentAttempts }, () =>
-            purchase(testApp.server, saleId, email),
-          ),
+          Array.from({ length: concurrentAttempts }, () => purchase(testApp.server, saleId, email)),
         );
       });
 
