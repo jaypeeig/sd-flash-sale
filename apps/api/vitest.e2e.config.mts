@@ -25,6 +25,22 @@ if (!testDatabaseUrl) {
   );
 }
 
+const deriveTestRedisUrl = (redisUrl: string): string => {
+  const url = new URL(redisUrl);
+  url.pathname = "/1";
+  return url.toString();
+};
+
+const testRedisUrl =
+  process.env.TEST_REDIS_URL ??
+  (process.env.REDIS_URL ? deriveTestRedisUrl(process.env.REDIS_URL) : undefined);
+
+if (!testRedisUrl) {
+  throw new Error(
+    "TEST_REDIS_URL is not set and REDIS_URL is unavailable to derive it from — copy .env.example to .env at the repo root.",
+  );
+}
+
 const migrationsFolder = fileURLToPath(new URL("../../packages/database/drizzle", import.meta.url));
 
 // globalSetup runs in the main process before workers start — hand it these
@@ -59,6 +75,8 @@ export default defineConfig({
       DATABASE_URL: testDatabaseUrl,
       TEST_DATABASE_URL: testDatabaseUrl,
       MIGRATIONS_FOLDER: migrationsFolder,
+      REDIS_URL: testRedisUrl,
+      TEST_REDIS_URL: testRedisUrl,
     },
   },
 });

@@ -22,6 +22,10 @@ export default defineConfig({
       // Pool connects lazily, so no real database is needed for tests that
       // never issue a query (e.g. health.controller.test.ts).
       DATABASE_URL: "postgresql://test:test@localhost:5432/test",
+      // Same story for RedisModule — ioredis connects in the background
+      // without blocking, and app.close() in afterAll runs onModuleDestroy
+      // (redis.quit()), so no real Redis is needed here either.
+      REDIS_URL: "redis://localhost:6379",
     },
   },
 });
