@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["NODE_ENV"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -14,9 +15,25 @@
     "db:seed": {
       "cache": false
     },
+    "db:setup": {
+      "cache": false
+    },
+    "db:up": {
+      "cache": false
+    },
+    "db:down": {
+      "cache": false
+    },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": ["API_PORT"]
+    },
+    "api#dev": {
+      "dependsOn": ["@workspace/database#db:up"],
+      "cache": false,
+      "persistent": true,
+      "env": ["API_PORT"]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -25,7 +42,7 @@
       "dependsOn": ["^lint:fix"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^build", "^typecheck"]
     },
     "test": {
       "dependsOn": ["^test"],

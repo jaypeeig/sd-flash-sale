@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { createDatabase } from "../client";
-import { loadEnv } from "../env";
+import { loadEnv } from "../load-env";
 import { products, purchases, sales, type ProductRow } from "../schema";
 
 loadEnv();

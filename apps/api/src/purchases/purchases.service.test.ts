@@ -1,0 +1,286 @@
+import { NotFoundException } from "@nestjs/common";
+import { describe, expect, it } from "vitest";
+import type { Database } from "../database/database.types";
+import { PurchasesService } from "./purchases.service";
+
+const HOUR = 60 * 60 * 1000;
+
+const baseSaleRow = {
+  startsAt: new Date(Date.now() - HOUR),
+  endsAt: new Date(Date.now() + HOUR),
+  remainingStock: 5,
+  salePrice: "189.00",
+  cancelledAt: null as Date | null,
+  productId: "22222222-2222-2222-a222-222222222222",
+  productName: "Field Recorder MK1",
+  productDescription: "Hand-assembled portable recorder.",
+  productImageUrl: "https://picsum.photos/seed/recorder/640/480",
+  productPrice: "229.00",
+};
+
+const withSelect = (row: typeof baseSaleRow | undefined) => ({
+  select: () => ({
+    from: () => ({
+      innerJoin: () => ({
+        where: () => Promise.resolve(row ? [row] : []),
+      }),
+    }),
+  }),
+});
+
+describe("Given no sale matches the given id", () => {
+  describe("When a purchase is attempted", () => {
+    it("Then it throws NotFoundException", async () => {
+      const db = { ...withSelect(undefined) } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      await expect(service.purchase("missing-id", "user@example.com")).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+});
+
+describe("Given a sale that has not started yet", () => {
+  describe("When a purchase is attempted", () => {
+    it("Then it returns a sale_not_active outcome", async () => {
+      const row = { ...baseSaleRow, startsAt: new Date(Date.now() + HOUR) };
+      const db = { ...withSelect(row) } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("sale_not_active");
+    });
+  });
+});
+
+describe("Given a sale that has already ended", () => {
+  describe("When a purchase is attempted", () => {
+    it("Then it returns a sale_not_active outcome", async () => {
+      const row = {
+        ...baseSaleRow,
+        startsAt: new Date(Date.now() - 2 * HOUR),
+        endsAt: new Date(Date.now() - HOUR),
+      };
+      const db = { ...withSelect(row) } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("sale_not_active");
+    });
+  });
+});
+
+describe("Given a cancelled sale", () => {
+  describe("When a purchase is attempted", () => {
+    it("Then it returns a sale_not_active outcome", async () => {
+      const row = { ...baseSaleRow, cancelledAt: new Date() };
+      const db = { ...withSelect(row) } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("sale_not_active");
+    });
+  });
+});
+
+describe("Given a sale with no remaining stock", () => {
+  describe("When a purchase is attempted", () => {
+    it("Then it returns a sold_out outcome", async () => {
+      const row = { ...baseSaleRow, remainingStock: 0 };
+      const db = { ...withSelect(row) } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("sold_out");
+    });
+  });
+});
+
+describe("Given an active sale with stock available", () => {
+  describe("When the purchase transaction succeeds", () => {
+    it("Then it returns a success outcome with the purchase record", async () => {
+      const purchasedAt = new Date("2026-08-26T10:00:00.000Z");
+      const tx = {
+        insert: () => ({
+          values: () => ({
+            returning: () =>
+              Promise.resolve([{ id: "purchase-id", email: "user@example.com", purchasedAt }]),
+          }),
+        }),
+        update: () => ({
+          set: () => ({
+            where: () => ({
+              returning: () => Promise.resolve([{ remainingStock: 4 }]),
+            }),
+          }),
+        }),
+      };
+      const db = {
+        ...withSelect(baseSaleRow),
+        transaction: (callback: (tx: unknown) => Promise<unknown>) => callback(tx),
+      } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result).toEqual({
+        status: "success",
+        message: "You've successfully secured your item!",
+        purchase: {
+          id: "purchase-id",
+          saleId: "sale-id",
+          product: {
+            id: baseSaleRow.productId,
+            name: baseSaleRow.productName,
+            description: baseSaleRow.productDescription,
+            imageUrl: baseSaleRow.productImageUrl,
+            price: baseSaleRow.productPrice,
+          },
+          email: "user@example.com",
+          price: baseSaleRow.salePrice,
+          purchasedAt: purchasedAt.toISOString(),
+        },
+      });
+    });
+  });
+
+  describe("When the stock decrement loses a concurrent race", () => {
+    it("Then it returns a sold_out outcome", async () => {
+      const tx = {
+        insert: () => ({
+          values: () => ({
+            returning: () =>
+              Promise.resolve([
+                { id: "purchase-id", email: "user@example.com", purchasedAt: new Date() },
+              ]),
+          }),
+        }),
+        update: () => ({
+          set: () => ({
+            where: () => ({
+              returning: () => Promise.resolve([]),
+            }),
+          }),
+        }),
+      };
+      const db = {
+        ...withSelect(baseSaleRow),
+        transaction: (callback: (tx: unknown) => Promise<unknown>) => callback(tx),
+      } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("sold_out");
+    });
+  });
+
+  describe("When the user has already purchased this sale", () => {
+    it("Then it returns an already_purchased outcome", async () => {
+      // Modeled on the actual shape drizzle-orm throws: a DrizzleQueryError
+      // wrapper whose .cause is the real pg error carrying the SQLSTATE code.
+      const uniqueViolation = Object.assign(new Error("Failed query"), {
+        cause: Object.assign(new Error("duplicate key value violates unique constraint"), {
+          code: "23505",
+        }),
+      });
+      const db = {
+        ...withSelect(baseSaleRow),
+        transaction: () => Promise.reject(uniqueViolation),
+      } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("already_purchased");
+    });
+  });
+
+  describe("When the sale's window closes before the transaction commits", () => {
+    it("Then it returns a sale_not_active outcome", async () => {
+      const outsideWindow = Object.assign(new Error("Failed query"), {
+        cause: Object.assign(new Error("purchase is outside the sale period"), { code: "P1002" }),
+      });
+      const db = {
+        ...withSelect(baseSaleRow),
+        transaction: () => Promise.reject(outsideWindow),
+      } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("sale_not_active");
+    });
+  });
+
+  describe("When the transaction fails for an unexpected reason", () => {
+    it("Then it rethrows the error", async () => {
+      const unexpected = new Error("connection reset");
+      const db = {
+        ...withSelect(baseSaleRow),
+        transaction: () => Promise.reject(unexpected),
+      } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      await expect(service.purchase("sale-id", "user@example.com")).rejects.toThrow(unexpected);
+    });
+  });
+});
+
+describe("Given a user has purchases", () => {
+  describe("When their purchases are requested by email", () => {
+    it("Then it maps each row into the PurchaseRecord shape", async () => {
+      const purchasedAt = new Date("2026-08-26T10:00:00.000Z");
+      const row = {
+        id: "purchase-id",
+        saleId: "sale-id",
+        email: "user@example.com",
+        purchasedAt,
+        salePrice: "189.00",
+        productId: baseSaleRow.productId,
+        productName: baseSaleRow.productName,
+        productDescription: baseSaleRow.productDescription,
+        productImageUrl: baseSaleRow.productImageUrl,
+        productPrice: baseSaleRow.productPrice,
+      };
+      const db = {
+        select: () => ({
+          from: () => ({
+            innerJoin: () => ({
+              innerJoin: () => ({
+                where: () => ({
+                  orderBy: () => Promise.resolve([row]),
+                }),
+              }),
+            }),
+          }),
+        }),
+      } as unknown as Database;
+      const service = new PurchasesService(db);
+
+      const result = await service.findByEmail("user@example.com");
+
+      expect(result).toEqual([
+        {
+          id: row.id,
+          saleId: row.saleId,
+          product: {
+            id: row.productId,
+            name: row.productName,
+            description: row.productDescription,
+            imageUrl: row.productImageUrl,
+            price: row.productPrice,
+          },
+          email: row.email,
+          price: row.salePrice,
+          purchasedAt: purchasedAt.toISOString(),
+        },
+      ]);
+    });
+  });
+});

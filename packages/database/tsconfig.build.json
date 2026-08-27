@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "verbatimModuleSyntax": false,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": [
+    "src/index.ts",
+    "src/client.ts",
+    "src/env.ts",
+    "src/errors.ts",
+    "src/errors.types.ts",
+    "src/schema"
+  ],
+  "exclude": ["src/scripts", "src/load-env.ts", "src/**/*.test.ts"]
+}

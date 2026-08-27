@@ -25,7 +25,9 @@ export type PurchaseOutcome = "success" | "already_purchased" | "sold_out" | "sa
 export interface PurchaseRecord {
   id: string;
   saleId: string;
+  product: Product;
   email: string;
+  price: string;
   purchasedAt: string;
 }
 
@@ -35,22 +37,29 @@ export interface PurchaseResult {
   purchase?: PurchaseRecord;
 }
 
+// XXX: Envelope every endpoint responds with on success
+export interface ApiResponse<T> {
+  statusCode: number;
+  message: string;
+  data: T;
+}
+
 export interface GetSalesParams {
   status?: "active" | "upcoming" | "past";
 }
 
-export type GetSalesResponse = Sale[];
+export type GetSalesResponse = ApiResponse<Sale[]>;
 
-export type GetSaleByIdResponse = Sale;
+export type GetSaleByIdResponse = ApiResponse<Sale>;
 
 export interface GetPurchasesParams {
   email: string;
 }
 
-export type GetPurchasesResponse = PurchaseRecord[];
+export type GetPurchasesResponse = ApiResponse<PurchaseRecord[]>;
 
 export interface PostPurchaseBody {
   email: string;
 }
 
-export type PostPurchaseResponse = PurchaseResult;
+export type PostPurchaseResponse = ApiResponse<PurchaseResult>;

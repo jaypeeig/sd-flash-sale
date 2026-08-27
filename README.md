@@ -52,12 +52,30 @@ npm run -w @workspace/database db:generate
 npm run -w @workspace/database db:migrate
 npm run -w @workspace/database db:seed
 
-# Run the app(s)
+# Run every app (web + api) together via Turbo
 npm run dev
 ```
 
 Stop the database with `docker compose down` (add `-v` to also drop its volume and start from an empty DB).
 
+To run a single app instead of the whole graph, target its workspace directly with `-w`:
+
+```bash
+npm run -w web dev   # React app  → http://localhost:5173
+npm run -w api dev   # NestJS API → http://localhost:3000/api
+```
+
 ### 2. Running tests
+
+#### Unit tests
+
+`web` and `api` each run their own suite with [Vitest](https://vitest.dev). Run every workspace's suite via Turbo, or target one directly:
+
+```bash
+npm run test          # every workspace with a test script (web + api)
+
+npm run -w web test   # React components/hooks
+npm run -w api test   # NestJS controllers/services
+```
 
 ## Running the stress test (k6)
