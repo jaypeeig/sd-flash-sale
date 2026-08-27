@@ -34,7 +34,6 @@ export interface PurchaseRecord {
 export interface PurchaseResult {
   status: PurchaseOutcome;
   message: string;
-  purchase?: PurchaseRecord;
 }
 
 // XXX: Envelope every endpoint responds with on success

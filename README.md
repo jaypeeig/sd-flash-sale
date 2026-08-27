@@ -109,13 +109,13 @@ npm run load-test -- capacity-ramp      # diagnostic only (not in the default su
 
 `flash-sale-spike` mixes a small pool of repeated emails into an otherwise-unique stream, so the herd produces real same-email collisions (`already_purchased`) under actual network+DB concurrency, not just stock exhaustion. Its target rate (1000 req/s) isn't arbitrary — `capacity-ramp` proved that's the last rate this Postgres pool holds cleanly (p50 ~3ms); the next plateau up, 1250 req/s, breaks hard (p50 ~2.5s). Above that, k6 itself becomes the bottleneck before the API does — its own summary calls this out with a ⚠️ if a run ever hits its VU cap while still dropping iterations, since that means the reported rate describes the load generator, not the system under test. Every knob above is tunable via env vars instead of editing code — `ARRIVAL_RATE`, `RAMP_SECONDS`, `DURATION_SECONDS` (the sustained portion), `EMAIL_REPEAT_SHARE`, `EMAIL_REPEAT_POOL_SIZE` — e.g. `ARRIVAL_RATE=200 RAMP_SECONDS=5 DURATION_SECONDS=10 npm run load-test -- flash-sale-spike` for a quick, low-intensity check.
 
-By default this targets `http://localhost:3000/api` and writes results to `packages/load-test/results/postgres-baseline/`. Both are overridable via env var:
+By default this targets `http://localhost:3000/api` and writes results to `packages/load-test/results/<today's date>/` (e.g. `results/2026-08-28/`) — one directory per day, shared by every test in that day's suite run. Both the target and the results directory name are overridable via env var:
 
 ```bash
 BASE_URL=http://localhost:4000/api npm run load-test -- smoke   # point at a different running API
 RESULTS_LABEL=redis npm run load-test                            # write to results/redis/ instead
 ```
 
-`RESULTS_LABEL` is how a later run gets kept separate from the committed Postgres-only baseline — e.g. once caching lands, `RESULTS_LABEL=redis npm run load-test` produces `results/redis/` to diff against `results/postgres-baseline/`.
+`RESULTS_LABEL` names a run explicitly instead of dating it — e.g. once caching lands, `RESULTS_LABEL=redis npm run load-test` produces `results/redis/` to diff against a committed baseline.
 
-Each run tags and cleans up its own product/sale/purchases in the dev database (never a truncate) and, after k6 exits, re-checks the correctness invariants (no overselling, no duplicate purchases) directly against Postgres. Results land as JSON + a markdown summary alongside each other in the results directory above, and `results/postgres-baseline/` is committed as the reference baseline.
+Each run tags and cleans up its own product/sale/purchases in the dev database (never a truncate) and, after k6 exits, re-checks the correctness invariants (no overselling, no duplicate purchases) directly against Postgres. Results land as JSON + a markdown summary alongside each other in the results directory above; `results/postgres-baseline-0/`, `-1/`, and `-2/` are committed as reference baselines (an unlabeled run never writes into them).
