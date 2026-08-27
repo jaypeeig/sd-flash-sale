@@ -78,4 +78,12 @@ npm run -w web test   # React components/hooks
 npm run -w api test   # NestJS controllers/services
 ```
 
+#### End-to-end tests
+
+`api` also has an e2e suite that boots the real NestJS app against a real Postgres database and drives it over HTTP with [supertest](https://github.com/ladjs/supertest) - including concurrency tests that fire many simultaneous purchases at once to prove no overselling and no duplicate purchases. It's kept separate from the unit suite above (its own Vitest config) so the fast unit run never needs Docker.
+
+```bash
+npm run test:e2e -- -- --reporter=tree
+```
+
 ## Running the stress test (k6)
