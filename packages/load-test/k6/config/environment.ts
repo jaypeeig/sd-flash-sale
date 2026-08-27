@@ -2,6 +2,8 @@
 // lives in exactly one spot, and `scripts/run.ts` has one contract to honor
 // when it spawns k6.
 
+import { todayResultsLabel } from "../../shared/constants.ts";
+
 const requireEnv = (name: string): string => {
   const value = __ENV[name];
   if (!value) {
@@ -33,7 +35,7 @@ export const runId = optionalEnv("RUN_ID", "local");
 
 // Where handleSummary() writes <test>.json / <test>.md — scripts/run.ts sets
 // this to results/<RESULTS_LABEL>/
-export const resultsDir = optionalEnv("RESULTS_DIR", "results/postgres-baseline");
+export const resultsDir = optionalEnv("RESULTS_DIR", `results/${todayResultsLabel()}`);
 
 export const durationSeconds = (fallback: number): number =>
   optionalNumberEnv("DURATION_SECONDS", fallback);

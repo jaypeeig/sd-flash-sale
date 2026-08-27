@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { FORWARDABLE_TUNING_ENV_VARS } from "../shared/constants.ts";
+import { FORWARDABLE_TUNING_ENV_VARS, todayResultsLabel } from "../shared/constants.ts";
 import { loadRootEnv } from "./env";
 import { cleanup } from "./cleanup";
 import { prepare, STOCK_PROFILES } from "./prepare";
@@ -11,9 +11,6 @@ import { printVerifyReport, verify } from "./verify";
 loadRootEnv();
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
-
-// Run with no test-name argument at all to get this — smoke gates the rest.
-const DEFAULT_RESULTS_LABEL = "postgres-baseline";
 
 interface RunArgs {
   /** undefined = no test named on the CLI, run the default suite. */
@@ -40,12 +37,12 @@ const parseArgs = (argv: string[]): RunArgs => {
       `Unknown test "${testName}" — expected one of: ${Object.keys(STOCK_PROFILES).join(", ")}, ` +
         `or omit it to run the full default suite (${DEFAULT_SUITE_STEPS.join(" -> ")}).\n` +
         `Usage: npm run load-test [-- <test-name>] [--keep]\n` +
-        `  results land in results/${DEFAULT_RESULTS_LABEL}/ — override the directory name with the RESULTS_LABEL env var.`,
+        `  results land in results/<today's date>/ — override the directory name with the RESULTS_LABEL env var.`,
     );
     process.exit(1);
   }
 
-  return { testName, keep, label: process.env.RESULTS_LABEL ?? DEFAULT_RESULTS_LABEL };
+  return { testName, keep, label: process.env.RESULTS_LABEL ?? todayResultsLabel() };
 };
 
 const preflightHealthCheck = async (baseUrl: string): Promise<void> => {
