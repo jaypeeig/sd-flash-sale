@@ -5,6 +5,8 @@ import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { DATABASE_CONNECTION } from "../database/database.constants";
 import type { Database } from "../database/database.types";
 import { isPgErrorWithCode, POSTGRES_UNIQUE_VIOLATION } from "../database/pg-error";
+import { SalesService } from "../sales/sales.service";
+import { isSaleOpen } from "../sales/sales.utils";
 import {
   ALREADY_PURCHASED_RESULT,
   SALE_NOT_ACTIVE_RESULT,
@@ -15,31 +17,20 @@ import { SoldOutError } from "./purchases.exceptions";
 
 @Injectable()
 export class PurchasesService {
-  constructor(@Inject(DATABASE_CONNECTION) private readonly db: Database) {}
+  constructor(
+    @Inject(DATABASE_CONNECTION) private readonly db: Database,
+    private readonly salesService: SalesService,
+  ) {}
 
   async purchase(saleId: string, email: string): Promise<PurchaseResult> {
-    const now = new Date();
-
-    const [sale] = await this.db
-      .select({
-        startsAt: sales.startsAt,
-        endsAt: sales.endsAt,
-        remainingStock: sales.remainingStock,
-        cancelledAt: sales.cancelledAt,
-      })
-      .from(sales)
-      .where(eq(sales.id, saleId));
+    const sale = await this.salesService.findRowById(saleId);
 
     if (!sale) {
       throw new NotFoundException("Sale not found");
     }
 
-    if (sale.cancelledAt !== null || now < sale.startsAt || now >= sale.endsAt) {
+    if (!isSaleOpen(sale, new Date())) {
       return SALE_NOT_ACTIVE_RESULT;
-    }
-
-    if (sale.remainingStock <= 0) {
-      return SOLD_OUT_RESULT;
     }
 
     try {
