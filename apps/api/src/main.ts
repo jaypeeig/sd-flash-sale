@@ -18,6 +18,10 @@ config({ path: resolve(process.cwd(), "../../.env") });
 const bootstrap = async () => {
   const app = await NestFactory.create(AppModule);
 
+  // Required for RedisModule's onModuleDestroy (redis.quit()) to run on
+  // SIGTERM/SIGINT rather than leaving the process to be force-killed.
+  app.enableShutdownHooks();
+
   app.setGlobalPrefix(GLOBAL_PREFIX);
 
   const swaggerConfig = new DocumentBuilder()

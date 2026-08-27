@@ -3,12 +3,17 @@ import { Test } from "@nestjs/testing";
 import request, { type Response } from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AppModule } from "../app.module";
+import { REDIS_CONNECTION } from "../redis/redis.constants";
+import type { RedisClient } from "../redis/redis.types";
 
 describe("Given the bootstrapped application", () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(REDIS_CONNECTION)
+      .useValue({ status: "ready", quit: async () => "OK" } as unknown as RedisClient)
+      .compile();
 
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix("api");
@@ -36,6 +41,10 @@ describe("Given the bootstrapped application", () => {
 
     it("Then it reports an ok status", () => {
       expect(response.body.data.status).toBe("ok");
+    });
+
+    it("Then it reports redis as up", () => {
+      expect(response.body.data.redis).toBe("up");
     });
   });
 

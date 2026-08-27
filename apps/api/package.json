@@ -20,6 +20,7 @@
     "@nestjs/swagger": "^11.4.7",
     "@scalar/nestjs-api-reference": "^1.2.16",
     "@workspace/database": "*",
+    "@workspace/redis": "*",
     "@workspace/shared-types": "*",
     "dotenv": "^17.4.2",
     "nestjs-zod": "^5.5.0",
