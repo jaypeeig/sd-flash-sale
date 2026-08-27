@@ -9,21 +9,13 @@ const baseSaleRow = {
   startsAt: new Date(Date.now() - HOUR),
   endsAt: new Date(Date.now() + HOUR),
   remainingStock: 5,
-  salePrice: "189.00",
   cancelledAt: null as Date | null,
-  productId: "22222222-2222-2222-a222-222222222222",
-  productName: "Field Recorder MK1",
-  productDescription: "Hand-assembled portable recorder.",
-  productImageUrl: "https://picsum.photos/seed/recorder/640/480",
-  productPrice: "229.00",
 };
 
 const withSelect = (row: typeof baseSaleRow | undefined) => ({
   select: () => ({
     from: () => ({
-      innerJoin: () => ({
-        where: () => Promise.resolve(row ? [row] : []),
-      }),
+      where: () => Promise.resolve(row ? [row] : []),
     }),
   }),
 });
@@ -103,14 +95,10 @@ describe("Given a sale with no remaining stock", () => {
 
 describe("Given an active sale with stock available", () => {
   describe("When the purchase transaction succeeds", () => {
-    it("Then it returns a success outcome with the purchase record", async () => {
-      const purchasedAt = new Date("2026-08-26T10:00:00.000Z");
+    it("Then it returns a success outcome", async () => {
       const tx = {
         insert: () => ({
-          values: () => ({
-            returning: () =>
-              Promise.resolve([{ id: "purchase-id", email: "user@example.com", purchasedAt }]),
-          }),
+          values: () => Promise.resolve(),
         }),
         update: () => ({
           set: () => ({
@@ -131,20 +119,6 @@ describe("Given an active sale with stock available", () => {
       expect(result).toEqual({
         status: "success",
         message: "You've successfully secured your item!",
-        purchase: {
-          id: "purchase-id",
-          saleId: "sale-id",
-          product: {
-            id: baseSaleRow.productId,
-            name: baseSaleRow.productName,
-            description: baseSaleRow.productDescription,
-            imageUrl: baseSaleRow.productImageUrl,
-            price: baseSaleRow.productPrice,
-          },
-          email: "user@example.com",
-          price: baseSaleRow.salePrice,
-          purchasedAt: purchasedAt.toISOString(),
-        },
       });
     });
   });
@@ -153,12 +127,7 @@ describe("Given an active sale with stock available", () => {
     it("Then it returns a sold_out outcome", async () => {
       const tx = {
         insert: () => ({
-          values: () => ({
-            returning: () =>
-              Promise.resolve([
-                { id: "purchase-id", email: "user@example.com", purchasedAt: new Date() },
-              ]),
-          }),
+          values: () => Promise.resolve(),
         }),
         update: () => ({
           set: () => ({
@@ -242,11 +211,11 @@ describe("Given a user has purchases", () => {
         email: "user@example.com",
         purchasedAt,
         salePrice: "189.00",
-        productId: baseSaleRow.productId,
-        productName: baseSaleRow.productName,
-        productDescription: baseSaleRow.productDescription,
-        productImageUrl: baseSaleRow.productImageUrl,
-        productPrice: baseSaleRow.productPrice,
+        productId: "22222222-2222-2222-a222-222222222222",
+        productName: "Field Recorder MK1",
+        productDescription: "Hand-assembled portable recorder.",
+        productImageUrl: "https://picsum.photos/seed/recorder/640/480",
+        productPrice: "229.00",
       };
       const db = {
         select: () => ({

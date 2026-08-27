@@ -412,6 +412,10 @@ components:
 
     PurchaseResult:
       type: object
+      description: >
+        Outcome of a purchase attempt. Carries only the outcome and a
+        display message — not the purchase itself. Fetch a buyer's
+        purchases via GET /purchases to get the full PurchaseRecord.
       required:
         - status
         - message

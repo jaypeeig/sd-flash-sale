@@ -1,5 +1,10 @@
 import type { PurchaseResult } from "@workspace/shared-types";
 
+export const SUCCESS_RESULT: PurchaseResult = {
+  status: "success",
+  message: "You've successfully secured your item!",
+};
+
 export const ALREADY_PURCHASED_RESULT: PurchaseResult = {
   status: "already_purchased",
   message: "You have already purchased this item.",

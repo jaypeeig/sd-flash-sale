@@ -24,12 +24,10 @@ describe("Given the bootstrapped application with a real database", () => {
 
   describe("Given an active sale with one unit left", () => {
     let saleId: string;
-    let salePrice: string;
 
     beforeEach(async () => {
       const sale = await createSale(testApp.db, { phase: "active", stock: 1 });
       saleId = sale.id;
-      salePrice = sale.salePrice;
     });
 
     describe("When POST /api/sales/:id/purchase is requested with a fresh email", () => {
@@ -50,9 +48,9 @@ describe("Given the bootstrapped application with a real database", () => {
         expect(body.data.status).toBe("success");
       });
 
-      it("Then it returns the purchase record priced at the sale price", () => {
+      it("Then the message confirms the item was secured", () => {
         const body: PostPurchaseResponse = response.body;
-        expect(body.data.purchase?.price).toBe(salePrice);
+        expect(body.data.message).toBe("You've successfully secured your item!");
       });
 
       it("Then the sale's remaining stock is decremented to zero", async () => {

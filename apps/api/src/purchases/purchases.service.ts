@@ -1,11 +1,5 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
-import {
-  DatabaseErrorCode,
-  products,
-  purchases,
-  sales,
-  type PurchaseRow,
-} from "@workspace/database";
+import { DatabaseErrorCode, products, purchases, sales } from "@workspace/database";
 import type { PurchaseRecord, PurchaseResult } from "@workspace/shared-types";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { DATABASE_CONNECTION } from "../database/database.constants";
@@ -15,6 +9,7 @@ import {
   ALREADY_PURCHASED_RESULT,
   SALE_NOT_ACTIVE_RESULT,
   SOLD_OUT_RESULT,
+  SUCCESS_RESULT,
 } from "./purchases.constants";
 import { SoldOutError } from "./purchases.exceptions";
 
@@ -30,16 +25,9 @@ export class PurchasesService {
         startsAt: sales.startsAt,
         endsAt: sales.endsAt,
         remainingStock: sales.remainingStock,
-        salePrice: sales.salePrice,
         cancelledAt: sales.cancelledAt,
-        productId: products.id,
-        productName: products.name,
-        productDescription: products.description,
-        productImageUrl: products.imageUrl,
-        productPrice: products.price,
       })
       .from(sales)
-      .innerJoin(products, eq(sales.productId, products.id))
       .where(eq(sales.id, saleId));
 
     if (!sale) {
@@ -58,8 +46,8 @@ export class PurchasesService {
       // Insert first, decrement second: a duplicate purchase or a purchase
       // outside the sale window (trigger-enforced) is then rejected before
       // ever touching — and contending on — the shared stock counter.
-      const purchaseRow = await this.db.transaction(async (tx): Promise<PurchaseRow> => {
-        const [inserted] = await tx.insert(purchases).values({ saleId, email }).returning();
+      await this.db.transaction(async (tx): Promise<void> => {
+        await tx.insert(purchases).values({ saleId, email });
 
         const [updated] = await tx
           .update(sales)
@@ -70,30 +58,9 @@ export class PurchasesService {
         if (!updated) {
           throw new SoldOutError();
         }
-
-        return inserted;
       });
 
-      const purchase: PurchaseRecord = {
-        id: purchaseRow.id,
-        saleId,
-        product: {
-          id: sale.productId,
-          name: sale.productName,
-          description: sale.productDescription,
-          imageUrl: sale.productImageUrl,
-          price: sale.productPrice,
-        },
-        email: purchaseRow.email,
-        price: sale.salePrice,
-        purchasedAt: purchaseRow.purchasedAt.toISOString(),
-      };
-
-      return {
-        status: "success",
-        message: "You've successfully secured your item!",
-        purchase,
-      };
+      return SUCCESS_RESULT;
     } catch (error) {
       if (error instanceof SoldOutError) {
         return SOLD_OUT_RESULT;
