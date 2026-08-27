@@ -1,0 +1,9 @@
+export const LOAD_TEST_EMAIL_DOMAIN = "loadtest.invalid";
+
+export const FORWARDABLE_TUNING_ENV_VARS = [
+  "DURATION_SECONDS",
+  "ARRIVAL_RATE",
+  "RAMP_SECONDS",
+  "EMAIL_REPEAT_SHARE",
+  "EMAIL_REPEAT_POOL_SIZE",
+] as const;

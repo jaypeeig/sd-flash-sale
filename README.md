@@ -87,3 +87,35 @@ npm run test:e2e -- -- --reporter=tree
 ```
 
 ## Running the stress test (k6)
+
+`packages/load-test` drives the running API with [k6](https://k6.io) — native TypeScript, no build step. It needs either a local `k6` binary or Docker (falls back to `docker run grafana/k6` automatically if `k6` isn't installed).
+
+Run the API in production mode first — `nest start --watch` isn't representative of real throughput:
+
+```bash
+npm run -w @workspace/database db:up
+npm run -w api build && npm run -w api start &
+```
+
+Run with no arguments for the default suite (smoke first as a fail-fast gate, then flash-sale-spike), or name one test to run just that:
+
+```bash
+npm run load-test                       # the default suite: smoke -> flash-sale-spike
+
+npm run load-test -- smoke              # 1 VU, 30s — sanity check, safe for CI
+npm run load-test -- flash-sale-spike   # thundering herd on a stock-5000 sale: 10s ramp up, 2m sustained, 20s ramp down, 1000 req/s
+npm run load-test -- capacity-ramp      # diagnostic only (not in the default suite, ~5.5 min): steps the rate through flat plateaus to find where latency actually breaks
+```
+
+`flash-sale-spike` mixes a small pool of repeated emails into an otherwise-unique stream, so the herd produces real same-email collisions (`already_purchased`) under actual network+DB concurrency, not just stock exhaustion. Its target rate (1000 req/s) isn't arbitrary — `capacity-ramp` proved that's the last rate this Postgres pool holds cleanly (p50 ~3ms); the next plateau up, 1250 req/s, breaks hard (p50 ~2.5s). Above that, k6 itself becomes the bottleneck before the API does — its own summary calls this out with a ⚠️ if a run ever hits its VU cap while still dropping iterations, since that means the reported rate describes the load generator, not the system under test. Every knob above is tunable via env vars instead of editing code — `ARRIVAL_RATE`, `RAMP_SECONDS`, `DURATION_SECONDS` (the sustained portion), `EMAIL_REPEAT_SHARE`, `EMAIL_REPEAT_POOL_SIZE` — e.g. `ARRIVAL_RATE=200 RAMP_SECONDS=5 DURATION_SECONDS=10 npm run load-test -- flash-sale-spike` for a quick, low-intensity check.
+
+By default this targets `http://localhost:3000/api` and writes results to `packages/load-test/results/postgres-baseline/`. Both are overridable via env var:
+
+```bash
+BASE_URL=http://localhost:4000/api npm run load-test -- smoke   # point at a different running API
+RESULTS_LABEL=redis npm run load-test                            # write to results/redis/ instead
+```
+
+`RESULTS_LABEL` is how a later run gets kept separate from the committed Postgres-only baseline — e.g. once caching lands, `RESULTS_LABEL=redis npm run load-test` produces `results/redis/` to diff against `results/postgres-baseline/`.
+
+Each run tags and cleans up its own product/sale/purchases in the dev database (never a truncate) and, after k6 exits, re-checks the correctness invariants (no overselling, no duplicate purchases) directly against Postgres. Results land as JSON + a markdown summary alongside each other in the results directory above, and `results/postgres-baseline/` is committed as the reference baseline.
