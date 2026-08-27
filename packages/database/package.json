@@ -10,7 +10,7 @@
     "build:pkg-json": "node -e \"require('fs').writeFileSync('dist/package.json', JSON.stringify({type:'commonjs'}))\"",
     "db:up": "docker compose -f ../../docker-compose.yml --project-directory ../.. up -d --wait postgres",
     "db:down": "docker compose -f ../../docker-compose.yml --project-directory ../.. down postgres",
-    "db:setup": "npm run db:up && npm run db:migrate && npm run db:seed",
+    "db:setup": "npm run db:up && npm run db:migrate && npm run db:seed && npm run build && npm run -w @workspace/redis redis:up && npm run -w @workspace/redis redis:sync -- --all",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/scripts/seed.ts",
