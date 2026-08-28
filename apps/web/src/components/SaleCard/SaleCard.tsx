@@ -41,9 +41,7 @@ const SaleCard = ({ sale, timer, children }: SaleCardProps) => {
           </p>
         </div>
       </div>
-      {children && (
-        <div className="flex justify-end border-t border-slate-100 pt-3">{children}</div>
-      )}
+      {children && <div className="border-t border-slate-100 pt-3">{children}</div>}
     </article>
   );
 };
