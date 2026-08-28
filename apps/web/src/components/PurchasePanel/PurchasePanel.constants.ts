@@ -12,3 +12,5 @@ export const NON_ACTIVE_LABELS: Record<Exclude<Sale["phase"], "active">, string>
   ended: "Sale ended",
   sold_out: "Sold out",
 };
+
+export const MIN_LOADING_MS = 1000;

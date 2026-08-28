@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -159,13 +159,19 @@ describe("Given two active sales", () => {
     });
 
     it("Then the first sale's card shows the success message", async () => {
-      expect(await screen.findByText("You've successfully secured your item!")).toBeInTheDocument();
+      expect(
+        await screen.findByText("You've successfully secured your item!", {}, { timeout: 2000 }),
+      ).toBeInTheDocument();
     });
 
-    it("Then the second sale's Buy now button is still there, unaffected", () => {
+    it("Then the second sale's Buy now button is still there, unaffected", async () => {
       // both cards independently still show a working button — the first
-      // sale's purchase succeeding doesn't disable or relabel the second's.
-      expect(screen.getAllByRole("button", { name: "Buy now" })).toHaveLength(2);
+      // sale's purchase succeeding doesn't disable or relabel the second's,
+      // once its own minimum loading delay has elapsed.
+      await waitFor(
+        () => expect(screen.getAllByRole("button", { name: "Buy now" })).toHaveLength(2),
+        { timeout: 2000 },
+      );
     });
   });
 });
@@ -191,7 +197,9 @@ describe("Given a signed-in user whose purchase succeeds", () => {
 
       await user.click(await screen.findByRole("button", { name: "Buy now" }));
 
-      expect(await screen.findByText("You've successfully secured your item!")).toBeInTheDocument();
+      expect(
+        await screen.findByText("You've successfully secured your item!", {}, { timeout: 2000 }),
+      ).toBeInTheDocument();
     });
   });
 });
@@ -216,7 +224,9 @@ describe("Given a signed-in user who already purchased", () => {
 
       await user.click(await screen.findByRole("button", { name: "Buy now" }));
 
-      expect(await screen.findByText("You have already purchased this item.")).toBeInTheDocument();
+      expect(
+        await screen.findByText("You have already purchased this item.", {}, { timeout: 2000 }),
+      ).toBeInTheDocument();
     });
   });
 });
@@ -241,7 +251,9 @@ describe("Given a sale that sells out the instant this user buys", () => {
 
       await user.click(await screen.findByRole("button", { name: "Buy now" }));
 
-      expect(await screen.findByText("Sorry, this item is sold out.")).toBeInTheDocument();
+      expect(
+        await screen.findByText("Sorry, this item is sold out.", {}, { timeout: 2000 }),
+      ).toBeInTheDocument();
     });
   });
 });
@@ -266,7 +278,9 @@ describe("Given a sale window that has just closed", () => {
 
       await user.click(await screen.findByRole("button", { name: "Buy now" }));
 
-      expect(await screen.findByText("This sale is not currently active.")).toBeInTheDocument();
+      expect(
+        await screen.findByText("This sale is not currently active.", {}, { timeout: 2000 }),
+      ).toBeInTheDocument();
     });
   });
 });
@@ -287,7 +301,9 @@ describe("Given a purchase request that 404s", () => {
 
       await user.click(await screen.findByRole("button", { name: "Buy now" }));
 
-      expect(await screen.findByRole("alert")).toHaveTextContent("Sale not found");
+      expect(await screen.findByRole("alert", {}, { timeout: 2000 })).toHaveTextContent(
+        "Sale not found",
+      );
     });
   });
 });
