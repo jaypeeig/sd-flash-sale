@@ -2,8 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
-import { UserProvider } from "../../context/UserContext";
-import { useUser } from "../../context/user-context";
+import { UserProvider, useUser } from "../../context/UserContext";
 import RequireAuth from "./RequireAuth";
 
 const LoginTrigger = () => {

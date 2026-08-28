@@ -22,6 +22,8 @@ const bootstrap = async () => {
   // (and vitest teardown, in the e2e suite) — see RedisModule.onModuleDestroy.
   app.enableShutdownHooks();
 
+  app.enableCors({ origin: "*", methods: ["GET", "POST"] });
+
   app.setGlobalPrefix(GLOBAL_PREFIX);
 
   const swaggerConfig = new DocumentBuilder()

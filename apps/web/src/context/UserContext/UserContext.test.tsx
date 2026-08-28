@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { UserProvider } from "./UserContext";
-import { useUser } from "./user-context";
+import { useUser } from "./UserContext.utils";
 
 const TestConsumer = () => {
   const { email, login, logout } = useUser();
