@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": [
+    "src/index.ts",
+    "src/client.ts",
+    "src/client.types.ts",
+    "src/env.ts",
+    "src/keys.ts",
+    "src/lua.ts",
+    "src/normalize-email.ts",
+    "src/reserve-purchase.ts",
+    "src/sync.ts"
+  ],
+  "exclude": ["src/scripts", "src/load-env.ts", "src/**/*.test.ts"]
+}
