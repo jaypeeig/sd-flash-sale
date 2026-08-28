@@ -2,8 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
-import { UserProvider } from "../../context/UserContext";
-import { useUser } from "../../context/user-context";
+import { UserProvider, useUser } from "../../context/UserContext";
 import LoginPage from "./LoginPage";
 
 const HomeStub = () => {

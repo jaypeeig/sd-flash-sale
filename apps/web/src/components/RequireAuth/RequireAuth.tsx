@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
-import { useUser } from "../../context/user-context";
+import { useUser } from "../../context/UserContext";
+import type { RequireAuthProps } from "./RequireAuth.types";
 
-const RequireAuth = ({ children }: { children: ReactNode }) => {
+const RequireAuth = ({ children }: RequireAuthProps) => {
   const { email } = useUser();
 
   if (!email) {

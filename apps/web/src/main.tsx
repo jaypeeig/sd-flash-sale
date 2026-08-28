@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
 import RequireAuth from "./components/RequireAuth";
-import { UserProvider } from "./context/UserContext.tsx";
+import { UserProvider } from "./context/UserContext";
 import "./index.css";
 import LiveSalePage from "./pages/live-sale";
 import LoginPage from "./pages/login";

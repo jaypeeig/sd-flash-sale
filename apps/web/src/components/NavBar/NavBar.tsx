@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useUser } from "../../context/user-context";
+import { useUser } from "../../context/UserContext";
 
 const NavBar = () => {
   const { email, logout } = useUser();
