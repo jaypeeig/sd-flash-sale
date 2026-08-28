@@ -3,5 +3,6 @@ import type { ReactNode } from "react";
 
 export interface SaleCardProps {
   sale: Sale;
+  timer?: ReactNode;
   children?: ReactNode;
 }

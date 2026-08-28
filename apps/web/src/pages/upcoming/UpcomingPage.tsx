@@ -18,13 +18,16 @@ const UpcomingPage = () => {
         <ul className="flex flex-col gap-3 p-0">
           {sales.map((sale) => (
             <li key={sale.id} className="list-none">
-              <SaleCard sale={sale}>
-                <Countdown
-                  label="Starts in"
-                  targetIso={sale.startsAt}
-                  serverTimeIso={sale.serverTime}
-                />
-              </SaleCard>
+              <SaleCard
+                sale={sale}
+                timer={
+                  <Countdown
+                    label="Starts in"
+                    targetIso={sale.startsAt}
+                    serverTimeIso={sale.serverTime}
+                  />
+                }
+              />
             </li>
           ))}
         </ul>

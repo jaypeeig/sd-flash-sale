@@ -25,12 +25,12 @@ const PurchasePanel = ({ sale, onPurchased }: PurchasePanelProps) => {
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col items-end gap-2">
       <button
         type="button"
         disabled={sale.phase !== "active" || isSubmitting}
         onClick={handleBuy}
-        className="w-fit cursor-pointer rounded bg-slate-900 px-3 py-2 text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+        className="w-fit cursor-pointer rounded bg-green-600 px-3 py-2 text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-400"
       >
         {sale.phase !== "active"
           ? NON_ACTIVE_LABELS[sale.phase]

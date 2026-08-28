@@ -25,8 +25,10 @@ const LiveSaleCard = ({ initialSale }: LiveSaleCardProps) => {
   }, []);
 
   return (
-    <SaleCard sale={sale}>
-      <Countdown label="Ends in" targetIso={sale.endsAt} serverTimeIso={sale.serverTime} />
+    <SaleCard
+      sale={sale}
+      timer={<Countdown label="Ends in" targetIso={sale.endsAt} serverTimeIso={sale.serverTime} />}
+    >
       <PurchasePanel sale={sale} onPurchased={refreshSale} />
     </SaleCard>
   );

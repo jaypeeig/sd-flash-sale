@@ -6,7 +6,7 @@ const Countdown = ({ label, targetIso, serverTimeIso }: CountdownProps) => {
   const remainingMs = useCountdown(targetIso, serverTimeIso);
 
   return (
-    <p className="text-slate-600">
+    <p className="text-orange-600">
       {label}{" "}
       <time dateTime={targetIso} className="font-medium">
         {formatDuration(remainingMs)}
