@@ -22,6 +22,9 @@ export default defineConfig({
       // Pool connects lazily, so no real database is needed for tests that
       // never issue a query (e.g. health.controller.test.ts).
       DATABASE_URL: "postgresql://test:test@localhost:5432/test",
+      // Same idea for RedisModule — createRedis() is also lazyConnect, so
+      // this only matters for tests that actually issue a Redis command.
+      REDIS_URL: "redis://localhost:6379/9",
     },
   },
 });

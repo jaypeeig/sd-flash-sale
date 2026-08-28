@@ -8,6 +8,7 @@ import { HealthController } from "./health/health.controller";
 import { HealthService } from "./health/health.service";
 import { PurchasesController } from "./purchases/purchases.controller";
 import { PurchasesService } from "./purchases/purchases.service";
+import { RedisModule } from "./redis/redis.module";
 import { SalesController } from "./sales/sales.controller";
 import { SalesService } from "./sales/sales.service";
 

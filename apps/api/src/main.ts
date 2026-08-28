@@ -18,6 +18,10 @@ config({ path: resolve(process.cwd(), "../../.env") });
 const bootstrap = async () => {
   const app = await NestFactory.create(AppModule);
 
+  // A live Redis socket otherwise keeps the event loop alive on shutdown
+  // (and vitest teardown, in the e2e suite) — see RedisModule.onModuleDestroy.
+  app.enableShutdownHooks();
+
   app.setGlobalPrefix(GLOBAL_PREFIX);
 
   const swaggerConfig = new DocumentBuilder()

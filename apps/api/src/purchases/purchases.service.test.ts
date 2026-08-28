@@ -1,6 +1,7 @@
-import { NotFoundException } from "@nestjs/common";
-import { describe, expect, it } from "vitest";
+import { Logger, NotFoundException } from "@nestjs/common";
+import { describe, expect, it, vi } from "vitest";
 import type { Database } from "../database/database.types";
+import type { Redis } from "../redis/redis.types";
 import type { SalesService } from "../sales/sales.service";
 import type { SaleRow } from "../sales/sales.types";
 import { PurchasesService } from "./purchases.service";
@@ -25,11 +26,25 @@ const baseSaleRow: SaleRow = {
 const fakeSalesService = (row: SaleRow | undefined) =>
   ({ findRowById: () => Promise.resolve(row) }) as unknown as SalesService;
 
+// Every test that isn't about Redis itself uses this: a socket that isn't
+// "ready" makes PurchasesService skip straight to the Postgres flow
+// without ever calling reservePurchase, so it's a safe default that keeps
+// the pre-Redis test cases below unchanged.
+const fakeDownRedis = (): Redis =>
+  ({
+    status: "end",
+    reservePurchase: () =>
+      Promise.reject(new Error("reservePurchase should not be called when Redis is down")),
+  }) as unknown as Redis;
+
+const fakeReadyRedis = (reservePurchase: () => Promise<string>): Redis =>
+  ({ status: "ready", reservePurchase }) as unknown as Redis;
+
 describe("Given no sale matches the given id", () => {
   describe("When a purchase is attempted", () => {
     it("Then it throws NotFoundException", async () => {
       const db = {} as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(undefined));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(undefined));
 
       await expect(service.purchase("missing-id", "user@example.com")).rejects.toThrow(
         NotFoundException,
@@ -43,7 +58,7 @@ describe("Given a sale that has not started yet", () => {
     it("Then it returns a sale_not_active outcome", async () => {
       const row = { ...baseSaleRow, startsAt: new Date(Date.now() + HOUR) };
       const db = {} as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(row));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(row));
 
       const result = await service.purchase("sale-id", "user@example.com");
 
@@ -61,7 +76,7 @@ describe("Given a sale that has already ended", () => {
         endsAt: new Date(Date.now() - HOUR),
       };
       const db = {} as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(row));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(row));
 
       const result = await service.purchase("sale-id", "user@example.com");
 
@@ -75,7 +90,7 @@ describe("Given a cancelled sale", () => {
     it("Then it returns a sale_not_active outcome", async () => {
       const row = { ...baseSaleRow, cancelledAt: new Date() };
       const db = {} as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(row));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(row));
 
       const result = await service.purchase("sale-id", "user@example.com");
 
@@ -102,7 +117,7 @@ describe("Given an active sale with stock available", () => {
       const db = {
         transaction: (callback: (tx: unknown) => Promise<unknown>) => callback(tx),
       } as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(baseSaleRow));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(baseSaleRow));
 
       const result = await service.purchase("sale-id", "user@example.com");
 
@@ -130,7 +145,7 @@ describe("Given an active sale with stock available", () => {
       const db = {
         transaction: (callback: (tx: unknown) => Promise<unknown>) => callback(tx),
       } as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(baseSaleRow));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(baseSaleRow));
 
       const result = await service.purchase("sale-id", "user@example.com");
 
@@ -150,7 +165,7 @@ describe("Given an active sale with stock available", () => {
       const db = {
         transaction: () => Promise.reject(uniqueViolation),
       } as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(baseSaleRow));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(baseSaleRow));
 
       const result = await service.purchase("sale-id", "user@example.com");
 
@@ -166,7 +181,7 @@ describe("Given an active sale with stock available", () => {
       const db = {
         transaction: () => Promise.reject(outsideWindow),
       } as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(baseSaleRow));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(baseSaleRow));
 
       const result = await service.purchase("sale-id", "user@example.com");
 
@@ -180,9 +195,129 @@ describe("Given an active sale with stock available", () => {
       const db = {
         transaction: () => Promise.reject(unexpected),
       } as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(baseSaleRow));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(baseSaleRow));
 
       await expect(service.purchase("sale-id", "user@example.com")).rejects.toThrow(unexpected);
+    });
+  });
+});
+
+describe("Given Redis is down", () => {
+  describe("When a purchase is attempted", () => {
+    it("Then it falls back to Postgres without calling the reservation script", async () => {
+      const reservePurchase = vi.fn();
+      const redis = { status: "end", reservePurchase } as unknown as Redis;
+      const tx = {
+        insert: () => ({ values: () => Promise.resolve() }),
+        update: () => ({
+          set: () => ({
+            where: () => ({ returning: () => Promise.resolve([{ remainingStock: 4 }]) }),
+          }),
+        }),
+      };
+      const db = {
+        transaction: (callback: (tx: unknown) => Promise<unknown>) => callback(tx),
+      } as unknown as Database;
+      const service = new PurchasesService(db, redis, fakeSalesService(baseSaleRow));
+
+      await service.purchase("sale-id", "user@example.com");
+
+      expect(reservePurchase).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("Given Redis has no state loaded for the sale", () => {
+  describe("When a purchase is attempted", () => {
+    it("Then it falls back to the same Postgres flow as when Redis is down", async () => {
+      const redis = fakeReadyRedis(() => Promise.resolve("not_warmed"));
+      const tx = {
+        insert: () => ({ values: () => Promise.resolve() }),
+        update: () => ({
+          set: () => ({
+            where: () => ({ returning: () => Promise.resolve([{ remainingStock: 4 }]) }),
+          }),
+        }),
+      };
+      const db = {
+        transaction: (callback: (tx: unknown) => Promise<unknown>) => callback(tx),
+      } as unknown as Database;
+      const service = new PurchasesService(db, redis, fakeSalesService(baseSaleRow));
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("success");
+    });
+  });
+});
+
+describe.each([
+  ["sale_not_active", "sale_not_active"],
+  ["already_purchased", "already_purchased"],
+  ["sold_out", "sold_out"],
+] as const)("Given Redis rejects the reservation as %s", (code, expectedStatus) => {
+  describe("When a purchase is attempted", () => {
+    it(`Then it returns a ${expectedStatus} outcome without touching Postgres`, async () => {
+      const dbTransaction = vi.fn();
+      const findRowById = vi.fn();
+      const redis = fakeReadyRedis(() => Promise.resolve(code));
+      const db = { transaction: dbTransaction } as unknown as Database;
+      const salesService = { findRowById } as unknown as SalesService;
+      const service = new PurchasesService(db, redis, salesService);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe(expectedStatus);
+      expect(dbTransaction).not.toHaveBeenCalled();
+      expect(findRowById).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("Given Redis reserves the purchase", () => {
+  describe("When the write-through to Postgres succeeds", () => {
+    it("Then it skips the sale lookup and returns a success outcome", async () => {
+      const findRowById = vi.fn();
+      const redis = fakeReadyRedis(() => Promise.resolve("reserved"));
+      const tx = {
+        insert: () => ({ values: () => Promise.resolve() }),
+        update: () => ({
+          set: () => ({
+            where: () => ({ returning: () => Promise.resolve([{ remainingStock: 4 }]) }),
+          }),
+        }),
+      };
+      const db = {
+        transaction: (callback: (tx: unknown) => Promise<unknown>) => callback(tx),
+      } as unknown as Database;
+      const salesService = { findRowById } as unknown as SalesService;
+      const service = new PurchasesService(db, redis, salesService);
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("success");
+      expect(findRowById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("When Postgres then rejects the write as a duplicate purchase", () => {
+    it("Then it returns already_purchased and logs the Redis/Postgres drift", async () => {
+      const errorSpy = vi.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+      const uniqueViolation = Object.assign(new Error("Failed query"), {
+        cause: Object.assign(new Error("duplicate key value violates unique constraint"), {
+          code: "23505",
+        }),
+      });
+      const redis = fakeReadyRedis(() => Promise.resolve("reserved"));
+      const db = { transaction: () => Promise.reject(uniqueViolation) } as unknown as Database;
+      const service = new PurchasesService(db, redis, fakeSalesService(baseSaleRow));
+
+      const result = await service.purchase("sale-id", "user@example.com");
+
+      expect(result.status).toBe("already_purchased");
+      expect(errorSpy).toHaveBeenCalled();
+
+      errorSpy.mockRestore();
     });
   });
 });
@@ -216,7 +351,7 @@ describe("Given a user has purchases", () => {
           }),
         }),
       } as unknown as Database;
-      const service = new PurchasesService(db, fakeSalesService(baseSaleRow));
+      const service = new PurchasesService(db, fakeDownRedis(), fakeSalesService(baseSaleRow));
 
       const result = await service.findByEmail("user@example.com");
 
