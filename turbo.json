@@ -4,6 +4,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": ["VITE_API_URL"],
       "outputs": ["dist/**", "build/**"]
     },
     "db:generate": {
@@ -39,7 +40,7 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["API_PORT"]
+      "env": ["API_PORT", "VITE_API_URL"]
     },
     "api#dev": {
       "dependsOn": ["@workspace/database#db:up", "@workspace/redis#redis:up"],
