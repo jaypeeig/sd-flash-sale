@@ -32,8 +32,12 @@ describe("Navbar", () => {
         expect(screen.getByRole("link", { name: "Login" })).toBeInTheDocument();
       });
 
-      it("Then no Sign out button is present", () => {
-        expect(screen.queryByText("Sign out")).not.toBeInTheDocument();
+      it("Then no Orders link is shown", () => {
+        expect(screen.queryByRole("link", { name: "Orders" })).not.toBeInTheDocument();
+      });
+
+      it("Then no account menu is present", () => {
+        expect(screen.queryByRole("button", { name: /user@example.com/ })).not.toBeInTheDocument();
       });
     });
 
@@ -44,23 +48,37 @@ describe("Navbar", () => {
         await user.click(screen.getByText("do-login"));
       });
 
-      it("Then the navbar shows the email", () => {
-        expect(screen.getByText("user@example.com")).toBeInTheDocument();
-      });
-
-      it("Then the navbar shows a Sign out button", () => {
-        expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+      it("Then the navbar shows an account menu button with the email", () => {
+        expect(screen.getByRole("button", { name: /user@example.com/ })).toBeInTheDocument();
       });
     });
   });
 
   describe("Given a signed-in user", () => {
+    describe("When they open the account menu", () => {
+      beforeEach(async () => {
+        const user = userEvent.setup();
+        renderNavBar();
+        await user.click(screen.getByText("do-login"));
+        await user.click(screen.getByRole("button", { name: /user@example.com/ }));
+      });
+
+      it("Then an Orders menu item is shown", () => {
+        expect(screen.getByRole("menuitem", { name: "Orders" })).toBeInTheDocument();
+      });
+
+      it("Then a Sign out menu item is shown", () => {
+        expect(screen.getByRole("menuitem", { name: "Sign out" })).toBeInTheDocument();
+      });
+    });
+
     describe("When they sign out", () => {
       beforeEach(async () => {
         const user = userEvent.setup();
         renderNavBar();
         await user.click(screen.getByText("do-login"));
-        await user.click(screen.getByRole("button", { name: "Sign out" }));
+        await user.click(screen.getByRole("button", { name: /user@example.com/ }));
+        await user.click(screen.getByRole("menuitem", { name: "Sign out" }));
       });
 
       it("Then the navbar reverts to the Login link", () => {
