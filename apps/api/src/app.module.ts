@@ -8,6 +8,7 @@ import { HealthController } from "./health/health.controller";
 import { HealthService } from "./health/health.service";
 import { ReadinessController } from "./health/readiness.controller";
 import { ReadinessService } from "./health/readiness.service";
+import { PurchaseReserveService } from "./purchases/purchases-reserve.service";
 import { PurchasesController } from "./purchases/purchases.controller";
 import { PurchasesService } from "./purchases/purchases.service";
 import { RedisModule } from "./redis/redis.module";
@@ -21,6 +22,7 @@ import { SalesService } from "./sales/sales.service";
     HealthService,
     ReadinessService,
     SalesService,
+    PurchaseReserveService,
     PurchasesService,
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },

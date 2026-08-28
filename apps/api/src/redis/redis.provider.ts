@@ -11,7 +11,7 @@ export const redisProvider: Provider = {
 
     // Never throw here — a dead Redis must not stop the app from booting
     // or serving; the purchase flow degrades to Postgres instead (see
-    // PurchasesService.reserve()).
+    // PurchaseReserveService.reserve()).
     redis.on("error", (error: Error) => {
       logger.warn(`Redis connection error: ${error.message}`);
     });

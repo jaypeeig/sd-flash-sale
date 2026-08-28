@@ -18,7 +18,7 @@ export interface PrepareResult {
 // fast path instead of silently falling back to the Postgres-only flow the
 // whole time — mirrors `redis:warm`, just scoped to this one sale. Never
 // fails the run: if Redis isn't reachable, the purchase endpoint degrades
-// to Postgres on its own (see PurchasesService.reserve()), so a load-test
+// to Postgres on its own (see PurchaseReserveService.reserve()), so a load-test
 // run against a down Redis is still a valid (if differently-labeled) run.
 const warmIntoRedis = async (sale: SyncSaleInput): Promise<void> => {
   const { redis, close } = createRedis();
