@@ -44,22 +44,17 @@ npm install
 # Copy the example env if you don't already have a local .env
 cp .env.example .env
 
-# Start Postgres and Redis (waits until both report healthy)
-docker compose up -d
-
-# Generate + apply migrations, then seed some sample products
-npm run -w @workspace/database db:generate
-npm run -w @workspace/database db:migrate
-npm run -w @workspace/database db:seed
-
-# Load every active/upcoming sale into Redis — the purchase endpoint's
+# Start Postgres + Redis, apply migrations, seed sample products, then
+# load every active/upcoming sale into Redis — the purchase endpoint's
 # fast path only engages for a sale that's been warmed; a cold sale just
 # falls through to the same Postgres flow as before Redis existed
-npm run -w @workspace/redis redis:warm
+npm run setup
 
 # Run every app (web + api) together via Turbo
 npm run dev
 ```
+
+If you've changed `packages/database/src/schema.ts`, generate a migration for it first with `npm run -w @workspace/database db:generate` — that's a schema-authoring step, not part of `npm run setup`, since a bootstrap on an unchanged schema shouldn't be creating migration files.
 
 Stop the stack with `docker compose down` (add `-v` to also drop both volumes and start from empty).
 
