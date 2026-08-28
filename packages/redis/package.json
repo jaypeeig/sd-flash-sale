@@ -1,0 +1,30 @@
+{
+  "name": "@workspace/redis",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "redis:up": "docker compose -f ../../docker-compose.yml --project-directory ../.. up -d --wait redis",
+    "redis:down": "docker compose -f ../../docker-compose.yml --project-directory ../.. down redis",
+    "redis:warm": "tsx src/scripts/warm.ts",
+    "redis:flush": "tsx src/scripts/flush.ts",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ioredis": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@workspace/database": "*",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "oxlint": "^1.80.0",
+    "tsx": "^4.23.12",
+    "typescript": "~6.0.2"
+  }
+}

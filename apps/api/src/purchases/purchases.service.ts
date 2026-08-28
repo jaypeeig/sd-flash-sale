@@ -14,15 +14,39 @@ import {
   SUCCESS_RESULT,
 } from "./purchases.constants";
 import { SoldOutError } from "./purchases.exceptions";
+import { PurchaseReserveService } from "./purchases-reserve.service";
 
 @Injectable()
 export class PurchasesService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
+    private readonly reserveService: PurchaseReserveService,
     private readonly salesService: SalesService,
   ) {}
 
   async purchase(saleId: string, email: string): Promise<PurchaseResult> {
+    const reservation = await this.reserveService.reserve(saleId, email);
+
+    switch (reservation) {
+      case "sale_not_active":
+        return SALE_NOT_ACTIVE_RESULT;
+      case "already_purchased":
+        return ALREADY_PURCHASED_RESULT;
+      case "sold_out":
+        return SOLD_OUT_RESULT;
+      case "reserved":
+        // Redis already confirmed the window, the buyer, and the stock —
+        // go straight to the write, no need to re-fetch the sale row.
+        return this.writePurchase(saleId, email);
+      case null:
+      case "not_warmed":
+        // Redis is down, or this sale was never loaded into it — fall
+        // back to the same Postgres-only flow as before Redis existed.
+        return this.recordPurchase(saleId, email);
+    }
+  }
+
+  private async recordPurchase(saleId: string, email: string): Promise<PurchaseResult> {
     const sale = await this.salesService.findRowById(saleId);
 
     if (!sale) {
@@ -33,10 +57,14 @@ export class PurchasesService {
       return SALE_NOT_ACTIVE_RESULT;
     }
 
+    return this.writePurchase(saleId, email);
+  }
+
+  // Insert first, decrement second: a duplicate purchase or a purchase
+  // outside the sale window (trigger-enforced) is then rejected before
+  // ever touching — and contending on — the shared stock counter.
+  private async writePurchase(saleId: string, email: string): Promise<PurchaseResult> {
     try {
-      // Insert first, decrement second: a duplicate purchase or a purchase
-      // outside the sale window (trigger-enforced) is then rejected before
-      // ever touching — and contending on — the shared stock counter.
       await this.db.transaction(async (tx): Promise<void> => {
         await tx.insert(purchases).values({ saleId, email });
 

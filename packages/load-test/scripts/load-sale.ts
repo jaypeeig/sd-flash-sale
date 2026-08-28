@@ -1,4 +1,11 @@
-import { createDatabase, products, purchases, sales, type ProductRow } from "@workspace/database";
+import {
+  createDatabase,
+  products,
+  purchases,
+  sales,
+  type ProductRow,
+  type SaleRow,
+} from "@workspace/database";
 import { eq } from "drizzle-orm";
 import { LOAD_TEST_EMAIL_DOMAIN } from "../shared/constants.ts";
 
@@ -21,9 +28,12 @@ export const findLoadTestProduct = async (db: LoadTestDb): Promise<ProductRow | 
   return product;
 };
 
-export const deleteLoadTestRows = async (db: LoadTestDb): Promise<void> => {
+// Returns the sale ids it deleted, so callers can also drop their Redis
+// state (see scripts/cleanup.ts) — deleting the Postgres rows alone would
+// leave that sale's flashsale:* keys behind as harmless but untidy orphans.
+export const deleteLoadTestRows = async (db: LoadTestDb): Promise<string[]> => {
   const product = await findLoadTestProduct(db);
-  if (!product) return;
+  if (!product) return [];
 
   const saleRows = await db
     .select({ id: sales.id })
@@ -34,6 +44,8 @@ export const deleteLoadTestRows = async (db: LoadTestDb): Promise<void> => {
   }
   await db.delete(sales).where(eq(sales.productId, product.id));
   await db.delete(products).where(eq(products.id, product.id));
+
+  return saleRows.map((sale) => sale.id);
 };
 
 export interface CreateLoadTestSaleOptions {
@@ -48,7 +60,7 @@ export interface CreateLoadTestSaleOptions {
 export const createLoadTestSale = async (
   db: LoadTestDb,
   { totalStock }: CreateLoadTestSaleOptions,
-): Promise<{ productId: string; saleId: string }> => {
+): Promise<{ productId: string; sale: SaleRow }> => {
   await deleteLoadTestRows(db);
 
   const now = Date.now();
@@ -74,5 +86,5 @@ export const createLoadTestSale = async (
     })
     .returning();
 
-  return { productId: product.id, saleId: sale.id };
+  return { productId: product.id, sale };
 };

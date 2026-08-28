@@ -25,6 +25,15 @@ if (!testDatabaseUrl) {
   );
 }
 
+// Unlike Postgres, isolation here is a separate Redis logical database
+// (index 1, see .env.example) rather than a separate name — no derivation
+// needed, just require it explicitly.
+const testRedisUrl = process.env.TEST_REDIS_URL;
+
+if (!testRedisUrl) {
+  throw new Error("TEST_REDIS_URL is not set — copy .env.example to .env at the repo root.");
+}
+
 const migrationsFolder = fileURLToPath(new URL("../../packages/database/drizzle", import.meta.url));
 
 // globalSetup runs in the main process before workers start — hand it these
@@ -58,6 +67,8 @@ export default defineConfig({
     env: {
       DATABASE_URL: testDatabaseUrl,
       TEST_DATABASE_URL: testDatabaseUrl,
+      REDIS_URL: testRedisUrl,
+      TEST_REDIS_URL: testRedisUrl,
       MIGRATIONS_FOLDER: migrationsFolder,
     },
   },

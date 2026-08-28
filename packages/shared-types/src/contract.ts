@@ -43,6 +43,21 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+export type DependencyStatus = "up" | "down";
+
+export interface RedisReadiness {
+  status: DependencyStatus;
+  latencyMs?: number;
+  error?: string;
+}
+
+export interface ReadinessStatus {
+  status: "ready" | "degraded";
+  redis: RedisReadiness;
+}
+
+export type GetReadinessResponse = ApiResponse<ReadinessStatus>;
+
 export interface GetSalesParams {
   status?: "active" | "upcoming" | "past";
 }

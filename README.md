@@ -44,7 +44,7 @@ npm install
 # Copy the example env if you don't already have a local .env
 cp .env.example .env
 
-# Start Postgres (waits until it reports healthy)
+# Start Postgres and Redis (waits until both report healthy)
 docker compose up -d
 
 # Generate + apply migrations, then seed some sample products
@@ -52,11 +52,18 @@ npm run -w @workspace/database db:generate
 npm run -w @workspace/database db:migrate
 npm run -w @workspace/database db:seed
 
+# Load every active/upcoming sale into Redis — the purchase endpoint's
+# fast path only engages for a sale that's been warmed; a cold sale just
+# falls through to the same Postgres flow as before Redis existed
+npm run -w @workspace/redis redis:warm
+
 # Run every app (web + api) together via Turbo
 npm run dev
 ```
 
-Stop the database with `docker compose down` (add `-v` to also drop its volume and start from an empty DB).
+Stop the stack with `docker compose down` (add `-v` to also drop both volumes and start from empty).
+
+Redis is a cache in front of Postgres, not a second source of truth — every purchase still writes through to Postgres, so no invariant depends on Redis staying up. If Redis drops mid-sale, purchases keep working via the Postgres-only fallback (see `PurchasesService.purchase()` in `apps/api/src/purchases/purchases.service.ts`); check `GET /api/ready` to see whether the fast path is currently engaged. **When Redis comes back after an outage, its counters are stale by design — the app flushes them on reconnect rather than guess** (see `apps/api/src/redis/redis.provider.ts`), so an operator must re-run `npm run -w @workspace/redis redis:warm` before the fast path resumes; until then, purchases keep going straight to Postgres.
 
 To run a single app instead of the whole graph, target its workspace directly with `-w`:
 

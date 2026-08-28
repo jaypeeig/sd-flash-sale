@@ -1,3 +1,4 @@
+import { createRedis, syncSale, type SyncSaleInput } from "@workspace/redis";
 import { loadRootEnv } from "./env";
 import { connect, createLoadTestSale } from "./load-sale";
 import { TESTS } from "./tests";
@@ -13,6 +14,27 @@ export interface PrepareResult {
   saleId: string;
 }
 
+// Warms the freshly created sale into Redis so a run actually exercises the
+// fast path instead of silently falling back to the Postgres-only flow the
+// whole time — mirrors `redis:warm`, just scoped to this one sale. Never
+// fails the run: if Redis isn't reachable, the purchase endpoint degrades
+// to Postgres on its own (see PurchaseReserveService.reserve()), so a load-test
+// run against a down Redis is still a valid (if differently-labeled) run.
+const warmIntoRedis = async (sale: SyncSaleInput): Promise<void> => {
+  const { redis, close } = createRedis();
+  try {
+    await syncSale(redis, sale, []);
+  } catch (error) {
+    console.warn(
+      `Could not warm sale ${sale.id} into Redis — the run will use the Postgres fallback: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  } finally {
+    await close();
+  }
+};
+
 export const prepare = async (testName: string): Promise<PrepareResult> => {
   const totalStock = Number(process.env.STOCK) || STOCK_PROFILES[testName];
   if (!totalStock) {
@@ -23,11 +45,12 @@ export const prepare = async (testName: string): Promise<PrepareResult> => {
 
   const { db, pool } = connect();
   try {
-    const result = await createLoadTestSale(db, { totalStock });
+    const { productId, sale } = await createLoadTestSale(db, { totalStock });
+    await warmIntoRedis(sale);
     console.log(
-      `Prepared load-test sale ${result.saleId} (stock ${totalStock}) for "${testName}".`,
+      `Prepared load-test sale ${sale.id} (stock ${totalStock}) for "${testName}", warmed into Redis.`,
     );
-    return result;
+    return { productId, saleId: sale.id };
   } finally {
     await pool.end();
   }
