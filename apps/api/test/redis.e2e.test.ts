@@ -65,6 +65,10 @@ describe("Given the bootstrapped application with a real database and Redis", ()
 
       beforeEach(async () => {
         outcome = await purchase(testApp.server, saleId, "buyer@example.com");
+        // A "reserved" outcome now goes through the queue, not a direct
+        // write (see PurchasesService.purchase) — drain it before the
+        // Postgres assertions below, standing in for apps/worker.
+        await testApp.drainQueue();
       });
 
       it("Then it reports success", () => {
@@ -185,6 +189,7 @@ describe("Given the bootstrapped application with a real database and Redis", ()
           ),
         );
         outcomes = responses.map((response) => response.status);
+        await testApp.drainQueue();
       });
 
       it("Then exactly one purchase succeeds", () => {
@@ -222,6 +227,7 @@ describe("Given the bootstrapped application with a real database and Redis", ()
           Array.from({ length: concurrentAttempts }, () => purchase(testApp.server, saleId, email)),
         );
         outcomes = responses.map((response) => response.status);
+        await testApp.drainQueue();
       });
 
       it("Then exactly one purchase succeeds", () => {

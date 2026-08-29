@@ -34,6 +34,15 @@ if (!testRedisUrl) {
   throw new Error("TEST_REDIS_URL is not set — copy .env.example to .env at the repo root.");
 }
 
+// No dedicated test broker (unlike Postgres's _test database or Redis's
+// index-1 db) — this suite reuses RABBITMQ_URL directly and purges the
+// queue on reset() instead (see test/setup/test-app.ts).
+const rabbitmqUrl = process.env.RABBITMQ_URL;
+
+if (!rabbitmqUrl) {
+  throw new Error("RABBITMQ_URL is not set — copy .env.example to .env at the repo root.");
+}
+
 const migrationsFolder = fileURLToPath(new URL("../../packages/database/drizzle", import.meta.url));
 
 // globalSetup runs in the main process before workers start — hand it these
@@ -69,6 +78,7 @@ export default defineConfig({
       TEST_DATABASE_URL: testDatabaseUrl,
       REDIS_URL: testRedisUrl,
       TEST_REDIS_URL: testRedisUrl,
+      RABBITMQ_URL: rabbitmqUrl,
       MIGRATIONS_FOLDER: migrationsFolder,
     },
   },

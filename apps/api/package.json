@@ -21,6 +21,7 @@
     "@nestjs/swagger": "^11.4.7",
     "@scalar/nestjs-api-reference": "^1.2.16",
     "@workspace/database": "*",
+    "@workspace/queue": "*",
     "@workspace/redis": "*",
     "@workspace/shared-types": "*",
     "cache-manager": "^7.2.9",
