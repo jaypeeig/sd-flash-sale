@@ -45,7 +45,7 @@ npm install
 cp .env.example .env
 
 # Start Postgres + Redis, apply migrations, seed sample products, then
-# load every active/upcoming sale into Redis — the purchase endpoint's
+# load every active/upcoming sale into Redis - the purchase endpoint's
 # fast path only engages for a sale that's been warmed; a cold sale just
 # falls through to the same Postgres flow as before Redis existed
 npm run setup
@@ -54,35 +54,20 @@ npm run setup
 npm run dev
 ```
 
-If you've changed `packages/database/src/schema.ts`, generate a migration for it first with `npm run -w @workspace/database db:generate` — that's a schema-authoring step, not part of `npm run setup`, since a bootstrap on an unchanged schema shouldn't be creating migration files.
-
-Stop the stack with `docker compose down` (add `-v` to also drop both volumes and start from empty).
-
-Redis is a cache in front of Postgres, not a second source of truth — every purchase still writes through to Postgres, so no invariant depends on Redis staying up. If Redis drops mid-sale, purchases keep working via the Postgres-only fallback (see `PurchasesService.purchase()` in `apps/api/src/purchases/purchases.service.ts`); check `GET /api/ready` to see whether the fast path is currently engaged. **When Redis comes back after an outage, its counters are stale by design — the app flushes them on reconnect rather than guess** (see `apps/api/src/redis/redis.provider.ts`), so an operator must re-run `npm run -w @workspace/redis redis:warm` before the fast path resumes; until then, purchases keep going straight to Postgres.
-
-To run a single app instead of the whole graph, target its workspace directly with `-w`:
-
-```bash
-npm run -w web dev   # React app  → http://localhost:5173
-npm run -w api dev   # NestJS API → http://localhost:3000/api
-```
+> NOTE: If you've changed `packages/database/src/schema.ts`, generate a migration for it first with `npm run -w @workspace/database db:generate`. that's a schema-authoring step, not part of `npm run setup`, since a bootstrap on an unchanged schema shouldn't be creating migration files.
 
 ### 2. Running tests
 
 #### Unit tests
 
-`web` and `api` each run their own suite with [Vitest](https://vitest.dev). Run every workspace's suite via Turbo, or target one directly:
-
 ```bash
-npm run test          # every workspace with a test script (web + api)
+npm run test          # every workspace with a test script
 
 npm run -w web test   # React components/hooks
 npm run -w api test   # NestJS controllers/services
 ```
 
 #### End-to-end tests
-
-`api` also has an e2e suite that boots the real NestJS app against a real Postgres database and drives it over HTTP with [supertest](https://github.com/ladjs/supertest) - including concurrency tests that fire many simultaneous purchases at once to prove no overselling and no duplicate purchases. It's kept separate from the unit suite above (its own Vitest config) so the fast unit run never needs Docker.
 
 ```bash
 npm run test:e2e -- -- --reporter=tree
