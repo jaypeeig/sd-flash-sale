@@ -3,7 +3,7 @@
 A single-product flash sale built for **crazy concurrency** no overselling, no duplicate purchases, and no “sorry, your order vanished” moments. Designed to **fail gracefully, not dramatically** when dependencies decide to take a coffee break.
 
 **Stack:** Turborepo · NestJS · React (react-router) · PostgreSQL · Redis ·
-Docker Compose · k6
+RabbitMQ · Docker Compose · k6
 
 ---
 
@@ -12,6 +12,7 @@ Docker Compose · k6
 - [Design choices and trade-offs](#design-choices-and-trade-offs)
 - [System diagram](#system-diagram)
 - [Getting started](#getting-started)
+- [Write path: Redis, then RabbitMQ, then Postgres](#write-path-redis-then-rabbitmq-then-postgres)
 - [Running the stress test (k6)](#running-the-stress-test-k6)
 
 ---
@@ -73,6 +74,20 @@ npm run -w api test   # NestJS controllers/services
 npm run test:e2e -- -- --reporter=tree
 ```
 
+## Write path: Redis, then RabbitMQ, then Postgres
+
+A purchase Redis confirms isn't written to Postgres inline - it's published
+to RabbitMQ and the API responds immediately. A separate worker
+(`apps/worker`) drains the queue into Postgres in batches, which is what
+keeps Postgres from being the throughput ceiling under a thundering herd.
+
+Retries are simple by design: a failed batch retries a few times, then
+dead-letters. There's no reconciliation - a dead-lettered write is a lost
+purchase, logged and left. One visible consequence: the stock count and
+order history you see can lag behind Redis by roughly the queue depth
+during a burst, since Postgres is now catching up asynchronously instead
+of updating inline.
+
 ## Running the stress test (k6)
 
 Load tests target the Kubernetes cluster, not local dev. Deploy the cluster first, see [k8s/README.md](k8s/README.md).
@@ -89,19 +104,19 @@ Each run seeds a fresh sale, warms Redis, runs k6, checks the correctness invari
 
 ### Env vars
 
-| Var | What it does | Default |
-| --- | --- | --- |
-| `ARRIVAL_RATE` | Target requests per second | 1250 |
-| `RAMP_SECONDS` | Ramp up and ramp down duration, same value for both if set | 10 up, 20 down |
-| `DURATION_SECONDS` | Sustained duration at the target rate | 120 |
-| `MAX_VUS` | Max concurrent virtual users k6 can use | 5000 |
-| `STOCK` | Overrides the sale's starting stock | depends on the test |
-| `RESULTS_LABEL` | Names the results folder | today's date |
-| `EMAIL_REPEAT_SHARE` | Share of requests that reuse an existing email | 0.3 |
-| `EMAIL_REPEAT_POOL_SIZE` | Size of the reused email pool | 200 |
-| `BASE_URL` | Overrides the target URL | `http://localhost:8080/api` |
-| `PG_LOCAL_PORT` | Local port for the Postgres port forward | 15432 |
-| `REDIS_LOCAL_PORT` | Local port for the Redis port forward | 16379 |
+| Var                      | What it does                                               | Default                     |
+| ------------------------ | ---------------------------------------------------------- | --------------------------- |
+| `ARRIVAL_RATE`           | Target requests per second                                 | 1250                        |
+| `RAMP_SECONDS`           | Ramp up and ramp down duration, same value for both if set | 10 up, 20 down              |
+| `DURATION_SECONDS`       | Sustained duration at the target rate                      | 120                         |
+| `MAX_VUS`                | Max concurrent virtual users k6 can use                    | 5000                        |
+| `STOCK`                  | Overrides the sale's starting stock                        | depends on the test         |
+| `RESULTS_LABEL`          | Names the results folder                                   | today's date                |
+| `EMAIL_REPEAT_SHARE`     | Share of requests that reuse an existing email             | 0.3                         |
+| `EMAIL_REPEAT_POOL_SIZE` | Size of the reused email pool                              | 200                         |
+| `BASE_URL`               | Overrides the target URL                                   | `http://localhost:8080/api` |
+| `PG_LOCAL_PORT`          | Local port for the Postgres port forward                   | 15432                       |
+| `REDIS_LOCAL_PORT`       | Local port for the Redis port forward                      | 16379                       |
 
 ### Example: 800, 1600, 3200 req/s
 
