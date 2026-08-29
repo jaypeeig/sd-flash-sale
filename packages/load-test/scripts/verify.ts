@@ -23,12 +23,19 @@ export interface VerifyResult {
 export const verify = async (saleId: string): Promise<VerifyResult> => {
   const { db, pool } = connect();
   try {
-    const [sale] = await db.select().from(sales).where(eq(sales.id, saleId));
+    const { sale, purchaseRows } = await db.transaction(
+      async (tx) => {
+        const [sale] = await tx.select().from(sales).where(eq(sales.id, saleId));
+        const purchaseRows = await tx.select().from(purchases).where(eq(purchases.saleId, saleId));
+        return { sale, purchaseRows };
+      },
+      { isolationLevel: "repeatable read" },
+    );
+
     if (!sale) {
       throw new Error(`Sale ${saleId} not found — did scripts/prepare.ts run for this test?`);
     }
 
-    const purchaseRows = await db.select().from(purchases).where(eq(purchases.saleId, saleId));
     const distinctEmails = new Set(purchaseRows.map((row) => row.email));
     const decrement = sale.totalStock - sale.remainingStock;
 
