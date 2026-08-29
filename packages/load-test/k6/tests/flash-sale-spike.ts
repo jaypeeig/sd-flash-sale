@@ -1,5 +1,5 @@
 import type { Options } from "k6/options";
-import { arrivalRatePerSecond, durationSeconds, rampSeconds } from "../config/environment.ts";
+import { arrivalRatePerSecond, durationSeconds, maxVus, rampSeconds } from "../config/environment.ts";
 import { rampingArrivalRate } from "../config/options.ts";
 import { generousLatencyThresholds } from "../config/thresholds.ts";
 import { createHandleSummary } from "../lib/summary.ts";
@@ -17,7 +17,7 @@ const scenario = rampingArrivalRate({
   rampUpSeconds: rampSeconds(10),
   sustainSeconds: durationSeconds(120),
   rampDownSeconds: rampSeconds(20),
-  maxVus: 5000,
+  maxVus: maxVus(5000),
   thresholds: generousLatencyThresholds,
 });
 
