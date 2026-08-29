@@ -15,7 +15,8 @@
     "src/env.ts",
     "src/errors.ts",
     "src/errors.types.ts",
-    "src/schema"
+    "src/schema",
+    "src/write-purchases.ts"
   ],
   "exclude": ["src/scripts", "src/load-env.ts", "src/**/*.test.ts"]
 }

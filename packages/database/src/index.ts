@@ -11,3 +11,5 @@ export type {
   PurchaseRow,
   SaleRow,
 } from "./schema";
+export { writePurchaseBatch } from "./write-purchases";
+export type { PurchaseWriteEntry } from "./write-purchases";
