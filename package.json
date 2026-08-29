@@ -12,11 +12,11 @@
     "format:check": "oxfmt --check .",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
-    "typecheck": "turbo run typecheck",
+    "load-test": "npm run -w @workspace/load-test load-test --",
+    "setup": "npm run -w @workspace/database db:setup && npm run -w @workspace/redis redis:setup",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
-    "load-test": "npm run -w @workspace/load-test load-test --",
-    "setup": "npm run -w @workspace/database db:setup && npm run -w @workspace/redis redis:up && npm run -w @workspace/redis redis:warm"
+    "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
     "oxfmt": "^0.65.0",
