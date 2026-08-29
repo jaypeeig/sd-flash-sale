@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+cd "$SCRIPT_DIR/.."
 
-NAMESPACE="flash-sale"
-
-kubectl delete job/flash-sale-warm -n "$NAMESPACE" --ignore-not-found
-kubectl apply -f jobs/warm-job.yaml
-
-if ! kubectl wait --for=condition=complete job/flash-sale-warm -n "$NAMESPACE" --timeout=120s; then
-  echo "Warm failed — logs:" >&2
-  kubectl logs job/flash-sale-warm -n "$NAMESPACE" >&2 || true
-  exit 1
-fi
+run_job_to_completion flash-sale-warm jobs/warm-job.yaml 120s
 
 kubectl logs job/flash-sale-warm -n "$NAMESPACE"

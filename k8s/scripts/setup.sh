@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+cd "$SCRIPT_DIR"
 
-NAMESPACE="flash-sale"
 SEED_ARGS=()
 for arg in "$@"; do
   [[ "$arg" == "--yes" || "$arg" == "-y" ]] && SEED_ARGS+=("--yes")

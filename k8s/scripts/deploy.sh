@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
-
-NAMESPACE="flash-sale"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+cd "$SCRIPT_DIR/.."
 
 echo "Applying manifests..."
 kubectl apply -k overlays/local
@@ -12,13 +12,7 @@ kubectl rollout status statefulset/postgres -n "$NAMESPACE" --timeout=180s
 kubectl rollout status statefulset/redis -n "$NAMESPACE" --timeout=180s
 
 echo "Running database migrations..."
-kubectl delete job/flash-sale-migrate -n "$NAMESPACE" --ignore-not-found
-kubectl apply -f jobs/migrate-job.yaml
-if ! kubectl wait --for=condition=complete job/flash-sale-migrate -n "$NAMESPACE" --timeout=120s; then
-  echo "Migration failed — logs:" >&2
-  kubectl logs job/flash-sale-migrate -n "$NAMESPACE" --all-containers >&2 || true
-  exit 1
-fi
+run_job_to_completion flash-sale-migrate jobs/migrate-job.yaml 120s
 
 echo "Rolling out api and web..."
 kubectl rollout status deployment/api -n "$NAMESPACE" --timeout=180s

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+cd "$SCRIPT_DIR/.."
 
-CLUSTER_NAME="flash-sale"
-
-if kubectl get ns flash-sale >/dev/null 2>&1; then
-  echo "Deleting namespace 'flash-sale' (app, data, PVCs)..."
-  kubectl delete namespace flash-sale --ignore-not-found
+if kubectl get ns "$NAMESPACE" >/dev/null 2>&1; then
+  echo "Deleting namespace '${NAMESPACE}' (app, data, PVCs)..."
+  kubectl delete namespace "$NAMESPACE" --ignore-not-found
 else
-  echo "Namespace 'flash-sale' not found — nothing to delete."
+  echo "Namespace '${NAMESPACE}' not found — nothing to delete."
 fi
 
 if [[ "${1:-}" == "--cluster" ]]; then

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+cd "$SCRIPT_DIR/.."
 
-NAMESPACE="flash-sale"
 ASSUME_YES=false
 for arg in "$@"; do
   [[ "$arg" == "--yes" || "$arg" == "-y" ]] && ASSUME_YES=true
@@ -14,14 +15,7 @@ if [[ "$ASSUME_YES" != true ]]; then
 fi
 
 echo "Running seed job (db:seed → redis:warm)..."
-kubectl delete job/flash-sale-seed -n "$NAMESPACE" --ignore-not-found
-kubectl apply -f jobs/seed-job.yaml
-
-if ! kubectl wait --for=condition=complete job/flash-sale-seed -n "$NAMESPACE" --timeout=180s; then
-  echo "Seed failed — logs:" >&2
-  kubectl logs job/flash-sale-seed -n "$NAMESPACE" --all-containers >&2 || true
-  exit 1
-fi
+run_job_to_completion flash-sale-seed jobs/seed-job.yaml 180s
 
 kubectl logs job/flash-sale-seed -n "$NAMESPACE" --all-containers
 echo
