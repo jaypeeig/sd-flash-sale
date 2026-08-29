@@ -41,6 +41,8 @@ export const arrivalRatePerSecond = (fallback: number): number =>
 export const rampSeconds = (fallback: number): number =>
   optionalNumberEnv("RAMP_SECONDS", fallback);
 
+export const maxVus = (fallback: number): number => optionalNumberEnv("MAX_VUS", fallback);
+
 // Share of purchase attempts (0-1) that target the repeat-email pool instead
 // of a fresh email — see lib/identity.ts's purchaseEmail().
 export const emailRepeatShare = (fallback: number): number =>
