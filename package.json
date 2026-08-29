@@ -13,7 +13,9 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "load-test": "npm run -w @workspace/load-test load-test --",
+    "postinstall": "bash scripts/check-deps.sh",
     "setup": "npm run -w @workspace/database db:setup && npm run -w @workspace/redis redis:setup && npm run -w @workspace/queue rabbitmq:up",
+    "setup:deps": "bash scripts/check-deps.sh --install",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
     "typecheck": "turbo run typecheck"

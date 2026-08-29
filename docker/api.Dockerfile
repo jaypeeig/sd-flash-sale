@@ -9,7 +9,8 @@ COPY packages/database/package.json packages/database/package.json
 COPY packages/queue/package.json packages/queue/package.json
 COPY packages/redis/package.json packages/redis/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
-RUN npm ci
+# XXX: --ignore-scripts skips root's postinstall (scripts/check-deps.sh)
+RUN npm ci --ignore-scripts
 
 FROM deps AS build
 COPY . .

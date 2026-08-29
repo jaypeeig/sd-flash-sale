@@ -33,9 +33,15 @@ RabbitMQ · Docker Compose · k6
 
 ### Prerequisites
 
-- Node.js
+- Node.js + npm
 - Docker + Docker Compose
-- npm
+
+The Kubernetes path (see below) also needs `kind`, `kubectl`, `kubeconform`,
+and optionally `k6`. `npm install` detects and installs whatever's missing —
+on Linux and macOS — so there's nothing to set up by hand beyond Node and
+Docker; set `SKIP_DEPS_CHECK=1` to skip that check entirely, or run it on
+demand with `npm run setup:deps`. See
+[scripts/check-deps.sh](scripts/check-deps.sh) for how it works.
 
 ### 1. Local development
 

@@ -35,9 +35,13 @@ k8s/scripts/setup.sh           # cluster-up → build-images → deploy → seed
 ```
 
 Needs Docker, [`kind`](https://kind.sigs.k8s.io/docs/user/quick-start/#installation),
-and [`kubectl`](https://kubernetes.io/docs/tasks/tools/#kubectl) -
-`cluster-up.sh` checks for the latter two and prints an install link if
-either is missing. No Helm.
+[`kubectl`](https://kubernetes.io/docs/tasks/tools/#kubectl), and
+[`kubeconform`](https://github.com/yannh/kubeconform#installation) - all four
+get installed automatically by the root `npm install` (see
+[../scripts/check-deps.sh](../scripts/check-deps.sh)), or on demand with
+`npm run setup:deps` from the repo root. `cluster-up.sh` and `validate.sh`
+still check for their tools directly and point at that command if anything's
+missing. No Helm.
 
 Then open **http://localhost:8080/** (docs at **http://localhost:8080/docs**).
 
