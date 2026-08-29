@@ -11,14 +11,17 @@ export class PurchaseReserveService {
 
   // Redis as the gate: null means "don't trust Redis right now" (down, or
   // the round trip itself failed) rather than a real rejection — the
-  // caller treats that identically to "not_warmed".
-  async reserve(saleId: string, email: string): Promise<ReservationCode | null> {
+  // caller treats that identically to "not_warmed". `now` is threaded in
+  // from the caller (rather than read here) so the same instant that
+  // validated the sale window is the one recorded on a queued write's
+  // reservedAt — see PurchasesService.purchase().
+  async reserve(saleId: string, email: string, now: number): Promise<ReservationCode | null> {
     if (this.redis.status !== "ready") {
       return null;
     }
 
     try {
-      return await reservePurchase(this.redis, { saleId, email, now: Date.now() });
+      return await reservePurchase(this.redis, { saleId, email, now });
     } catch (error) {
       this.logger.warn(
         `Redis reservation failed for sale ${saleId} — falling back to Postgres: ${

@@ -37,16 +37,31 @@
     "redis:flush": {
       "cache": false
     },
+    "rabbitmq:up": {
+      "cache": false
+    },
+    "rabbitmq:down": {
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true,
       "env": ["API_PORT", "VITE_API_URL"]
     },
     "api#dev": {
-      "dependsOn": ["@workspace/database#db:up", "@workspace/redis#redis:up"],
+      "dependsOn": [
+        "@workspace/database#db:up",
+        "@workspace/redis#redis:up",
+        "@workspace/queue#rabbitmq:up"
+      ],
       "cache": false,
       "persistent": true,
       "env": ["API_PORT"]
+    },
+    "worker#dev": {
+      "dependsOn": ["@workspace/database#db:up", "@workspace/queue#rabbitmq:up"],
+      "cache": false,
+      "persistent": true
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -62,11 +77,21 @@
       "outputs": ["coverage/**"]
     },
     "test:e2e": {
-      "dependsOn": ["^build", "@workspace/database#db:up", "@workspace/redis#redis:up"],
+      "dependsOn": [
+        "^build",
+        "@workspace/database#db:up",
+        "@workspace/redis#redis:up",
+        "@workspace/queue#rabbitmq:up"
+      ],
       "cache": false
     },
     "load-test": {
-      "dependsOn": ["^build", "@workspace/database#db:up", "@workspace/redis#redis:up"],
+      "dependsOn": [
+        "^build",
+        "@workspace/database#db:up",
+        "@workspace/redis#redis:up",
+        "@workspace/queue#rabbitmq:up"
+      ],
       "cache": false
     }
   }

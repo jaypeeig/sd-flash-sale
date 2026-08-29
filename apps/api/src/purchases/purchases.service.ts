@@ -14,6 +14,7 @@ import {
   SUCCESS_RESULT,
 } from "./purchases.constants";
 import { SoldOutError } from "./purchases.exceptions";
+import { PurchaseQueueService } from "./purchases-queue.service";
 import { PurchaseReserveService } from "./purchases-reserve.service";
 
 @Injectable()
@@ -21,11 +22,13 @@ export class PurchasesService {
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: Database,
     private readonly reserveService: PurchaseReserveService,
+    private readonly queueService: PurchaseQueueService,
     private readonly salesService: SalesService,
   ) {}
 
   async purchase(saleId: string, email: string): Promise<PurchaseResult> {
-    const reservation = await this.reserveService.reserve(saleId, email);
+    const now = Date.now();
+    const reservation = await this.reserveService.reserve(saleId, email, now);
 
     switch (reservation) {
       case "sale_not_active":
@@ -34,10 +37,16 @@ export class PurchasesService {
         return ALREADY_PURCHASED_RESULT;
       case "sold_out":
         return SOLD_OUT_RESULT;
-      case "reserved":
+      case "reserved": {
         // Redis already confirmed the window, the buyer, and the stock —
-        // go straight to the write, no need to re-fetch the sale row.
-        return this.writePurchase(saleId, email);
+        // hand the write to the queue (apps/worker drains it into
+        // Postgres) and respond immediately, no need to re-fetch the sale
+        // row. The stock is already spent in Redis, so a broker that
+        // won't take the message can't just drop it — fall back to the
+        // synchronous write instead.
+        const queued = await this.queueService.publish({ saleId, email, reservedAt: now });
+        return queued ? SUCCESS_RESULT : this.writePurchase(saleId, email);
+      }
       case null:
       case "not_warmed":
         // Redis is down, or this sale was never loaded into it — fall

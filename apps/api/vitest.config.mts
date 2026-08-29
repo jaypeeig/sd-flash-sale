@@ -25,6 +25,10 @@ export default defineConfig({
       // Same idea for RedisModule — createRedis() is also lazyConnect, so
       // this only matters for tests that actually issue a Redis command.
       REDIS_URL: "redis://localhost:6379/9",
+      // QueueModule's createQueueConnection() connects in the background
+      // and never throws (see packages/queue/src/connection.ts) — this
+      // only needs to be set, not reachable, for these tests.
+      RABBITMQ_URL: "amqp://test:test@localhost:5672",
     },
   },
 });

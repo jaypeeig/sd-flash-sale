@@ -4,6 +4,7 @@ import type { Database } from "../database/database.types";
 import type { Redis } from "../redis/redis.types";
 import type { SalesService } from "../sales/sales.service";
 import type { SaleRow } from "../sales/sales.types";
+import type { PurchaseQueueService } from "./purchases-queue.service";
 import { PurchaseReserveService } from "./purchases-reserve.service";
 import { PurchasesService } from "./purchases.service";
 
@@ -41,6 +42,12 @@ const fakeDownRedis = (): Redis =>
 const fakeReadyRedis = (reservePurchase: () => Promise<string>): Redis =>
   ({ status: "ready", reservePurchase }) as unknown as Redis;
 
+// Every test that isn't about the queue itself uses this: publish always
+// succeeds, so the pre-queue test cases below (which never reach the
+// "reserved" branch) are unaffected by it.
+const fakeQueue = (publish: () => Promise<boolean> = () => Promise.resolve(true)) =>
+  ({ publish }) as unknown as PurchaseQueueService;
+
 describe("Given no sale matches the given id", () => {
   describe("When a purchase is attempted", () => {
     it("Then it throws NotFoundException", async () => {
@@ -48,6 +55,7 @@ describe("Given no sale matches the given id", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(undefined),
       );
 
@@ -66,6 +74,7 @@ describe("Given a sale that has not started yet", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(row),
       );
 
@@ -88,6 +97,7 @@ describe("Given a sale that has already ended", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(row),
       );
 
@@ -106,6 +116,7 @@ describe("Given a cancelled sale", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(row),
       );
 
@@ -137,6 +148,7 @@ describe("Given an active sale with stock available", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(baseSaleRow),
       );
 
@@ -169,6 +181,7 @@ describe("Given an active sale with stock available", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(baseSaleRow),
       );
 
@@ -193,6 +206,7 @@ describe("Given an active sale with stock available", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(baseSaleRow),
       );
 
@@ -213,6 +227,7 @@ describe("Given an active sale with stock available", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(baseSaleRow),
       );
 
@@ -231,6 +246,7 @@ describe("Given an active sale with stock available", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(baseSaleRow),
       );
 
@@ -258,6 +274,7 @@ describe("Given Redis is down", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(redis),
+        fakeQueue(),
         fakeSalesService(baseSaleRow),
       );
 
@@ -286,6 +303,7 @@ describe("Given Redis has no state loaded for the sale", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(redis),
+        fakeQueue(),
         fakeSalesService(baseSaleRow),
       );
 
@@ -308,7 +326,12 @@ describe.each([
       const redis = fakeReadyRedis(() => Promise.resolve(code));
       const db = { transaction: dbTransaction } as unknown as Database;
       const salesService = { findRowById } as unknown as SalesService;
-      const service = new PurchasesService(db, new PurchaseReserveService(redis), salesService);
+      const service = new PurchasesService(
+        db,
+        new PurchaseReserveService(redis),
+        fakeQueue(),
+        salesService,
+      );
 
       const result = await service.purchase("sale-id", "user@example.com");
 
@@ -320,49 +343,79 @@ describe.each([
 });
 
 describe("Given Redis reserves the purchase", () => {
-  describe("When the write-through to Postgres succeeds", () => {
-    it("Then it skips the sale lookup and returns a success outcome", async () => {
+  describe("When the queue publish succeeds", () => {
+    it("Then it returns a success outcome without touching Postgres", async () => {
       const findRowById = vi.fn();
+      const dbTransaction = vi.fn();
       const redis = fakeReadyRedis(() => Promise.resolve("reserved"));
-      const tx = {
-        insert: () => ({ values: () => Promise.resolve() }),
-        update: () => ({
-          set: () => ({
-            where: () => ({ returning: () => Promise.resolve([{ remainingStock: 4 }]) }),
-          }),
-        }),
-      };
-      const db = {
-        transaction: (callback: (tx: unknown) => Promise<unknown>) => callback(tx),
-      } as unknown as Database;
+      const db = { transaction: dbTransaction } as unknown as Database;
       const salesService = { findRowById } as unknown as SalesService;
-      const service = new PurchasesService(db, new PurchaseReserveService(redis), salesService);
-
-      const result = await service.purchase("sale-id", "user@example.com");
-
-      expect(result.status).toBe("success");
-      expect(findRowById).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("When Postgres then rejects the write as a duplicate purchase", () => {
-    it("Then it returns already_purchased", async () => {
-      const uniqueViolation = Object.assign(new Error("Failed query"), {
-        cause: Object.assign(new Error("duplicate key value violates unique constraint"), {
-          code: "23505",
-        }),
-      });
-      const redis = fakeReadyRedis(() => Promise.resolve("reserved"));
-      const db = { transaction: () => Promise.reject(uniqueViolation) } as unknown as Database;
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(redis),
-        fakeSalesService(baseSaleRow),
+        fakeQueue(),
+        salesService,
       );
 
       const result = await service.purchase("sale-id", "user@example.com");
 
-      expect(result.status).toBe("already_purchased");
+      expect(result.status).toBe("success");
+      expect(dbTransaction).not.toHaveBeenCalled();
+      expect(findRowById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("When the queue publish fails", () => {
+    // The stock is already spent in Redis by this point — a broker that
+    // won't take the message can't just drop it, so this falls back to
+    // the same synchronous write-through the pre-queue flow used.
+    describe("When the fallback write-through to Postgres succeeds", () => {
+      it("Then it returns a success outcome", async () => {
+        const redis = fakeReadyRedis(() => Promise.resolve("reserved"));
+        const tx = {
+          insert: () => ({ values: () => Promise.resolve() }),
+          update: () => ({
+            set: () => ({
+              where: () => ({ returning: () => Promise.resolve([{ remainingStock: 4 }]) }),
+            }),
+          }),
+        };
+        const db = {
+          transaction: (callback: (tx: unknown) => Promise<unknown>) => callback(tx),
+        } as unknown as Database;
+        const service = new PurchasesService(
+          db,
+          new PurchaseReserveService(redis),
+          fakeQueue(() => Promise.resolve(false)),
+          fakeSalesService(baseSaleRow),
+        );
+
+        const result = await service.purchase("sale-id", "user@example.com");
+
+        expect(result.status).toBe("success");
+      });
+    });
+
+    describe("When Postgres then rejects the fallback write as a duplicate purchase", () => {
+      it("Then it returns already_purchased", async () => {
+        const uniqueViolation = Object.assign(new Error("Failed query"), {
+          cause: Object.assign(new Error("duplicate key value violates unique constraint"), {
+            code: "23505",
+          }),
+        });
+        const redis = fakeReadyRedis(() => Promise.resolve("reserved"));
+        const db = { transaction: () => Promise.reject(uniqueViolation) } as unknown as Database;
+        const service = new PurchasesService(
+          db,
+          new PurchaseReserveService(redis),
+          fakeQueue(() => Promise.resolve(false)),
+          fakeSalesService(baseSaleRow),
+        );
+
+        const result = await service.purchase("sale-id", "user@example.com");
+
+        expect(result.status).toBe("already_purchased");
+      });
     });
   });
 });
@@ -399,6 +452,7 @@ describe("Given a user has purchases", () => {
       const service = new PurchasesService(
         db,
         new PurchaseReserveService(fakeDownRedis()),
+        fakeQueue(),
         fakeSalesService(baseSaleRow),
       );
 

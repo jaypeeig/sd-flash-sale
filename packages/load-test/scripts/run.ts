@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { FORWARDABLE_TUNING_ENV_VARS, todayResultsLabel } from "../shared/constants.ts";
 import { loadRootEnv } from "./env";
 import { cleanup } from "./cleanup";
+import { waitForQueueDrain } from "./drain-queue";
 import { prepare, STOCK_PROFILES } from "./prepare";
 import { DEFAULT_SUITE_STEPS } from "./tests";
 import { printVerifyReport, verify } from "./verify";
@@ -117,6 +118,31 @@ interface RunSingleTestOptions {
   keep: boolean;
 }
 
+// Writes are async now (see apps/worker) — verify.ts's invariant checks are
+// meaningless until this run's queue backlog has actually drained. Best
+// effort: a RabbitMQ that's unreachable here just skips the barrier and
+// warns, the same graceful-degrade shape as prepare.ts's warmIntoRedis —
+// verify.ts's own checks will then surface the real story either way.
+const drainQueueBeforeVerify = async (): Promise<void> => {
+  const timeoutMs = Number(process.env.DRAIN_TIMEOUT_MS) || undefined;
+  try {
+    const result = await waitForQueueDrain(timeoutMs);
+    if (result.timedOut) {
+      console.warn(
+        `Queue drain timed out after ${result.drainedMs}ms with ${result.finalDepth} message(s) still queued — verify.ts will likely report a mismatch.`,
+      );
+    } else {
+      console.log(`Queue drained in ${result.drainedMs}ms.`);
+    }
+  } catch (error) {
+    console.warn(
+      `Could not check the purchase-writes queue depth — skipping the drain barrier: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+};
+
 const runSingleTest = async (
   testName: string,
   { baseUrl, resultsDir, keep }: RunSingleTestOptions,
@@ -131,6 +157,8 @@ const runSingleTest = async (
     RESULTS_DIR: resultsDir,
     ...forwardedTuningEnv(),
   });
+
+  await drainQueueBeforeVerify();
 
   const verifyResult = await verify(saleId);
   printVerifyReport(verifyResult);

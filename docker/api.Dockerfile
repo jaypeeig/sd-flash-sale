@@ -6,6 +6,7 @@ FROM base AS deps
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/database/package.json packages/database/package.json
+COPY packages/queue/package.json packages/queue/package.json
 COPY packages/redis/package.json packages/redis/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
 RUN npm ci
@@ -29,6 +30,9 @@ COPY --from=build /app/apps/api/dist apps/api/dist
 
 COPY --from=build /app/packages/database/package.json packages/database/package.json
 COPY --from=build /app/packages/database/dist packages/database/dist
+
+COPY --from=build /app/packages/queue/package.json packages/queue/package.json
+COPY --from=build /app/packages/queue/dist packages/queue/dist
 
 COPY --from=build /app/packages/redis/package.json packages/redis/package.json
 COPY --from=build /app/packages/redis/dist packages/redis/dist
