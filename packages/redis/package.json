@@ -11,6 +11,7 @@
     "redis:down": "docker compose -f ../../docker-compose.yml --project-directory ../.. down redis",
     "redis:warm": "tsx src/scripts/warm.ts",
     "redis:flush": "tsx src/scripts/flush.ts",
+    "redis:setup": "npm run build && npm run redis:up && npm run redis:warm",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "typecheck": "tsc --noEmit"
