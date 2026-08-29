@@ -42,4 +42,5 @@ Then open **http://localhost:8080/** (docs at **http://localhost:8080/docs**).
 | `deploy.sh`           | apply `overlays/local`, wait for postgres/redis, run migrations to completion, roll out api + web |
 | `seed.sh [--yes]`     | **destructive** - truncates and re-seeds Postgres, then warms Redis. Never run by `deploy.sh`.    |
 | `warm.sh`             | non-destructive - re-warms Redis from Postgres only (e.g. after a Redis pod restart)              |
+| `load-test.sh [args]` | runs `packages/load-test`'s k6 suite against the cluster (port-forwards postgres/redis, targets the Ingress) |
 | `down.sh [--cluster]` | delete the `flash-sale` namespace (app + PVCs); `--cluster` also deletes the kind cluster         |

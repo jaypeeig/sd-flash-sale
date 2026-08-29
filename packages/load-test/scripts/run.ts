@@ -165,7 +165,10 @@ const main = async (): Promise<void> => {
   }
 
   await preflightHealthCheck(baseUrl);
-  mkdirSync(`${packageDir}/${resultsDir}`, { recursive: true });
+  // XXX: recursive:true also creates resultsDir itself — createHandleSummary
+  // (k6/lib/summary.ts) writes the .json report one level deeper than the
+  // .md report, so both must exist before k6 runs.
+  mkdirSync(`${packageDir}/${resultsDir}/json`, { recursive: true });
 
   if (steps.length > 1) {
     console.log(`Running the default suite: ${steps.join(" -> ")} (results -> ${resultsDir}/)`);

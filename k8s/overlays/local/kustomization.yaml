@@ -13,7 +13,7 @@ configMapGenerator:
     options:
       disableNameSuffixHash: true
 
-# XXX: Local-only credentials matching docker-compose.yml's defaults
+# XXX: Local-only credentials matching docker-compose.yml's defaults.
 secretGenerator:
   - name: flash-sale-secrets
     literals:

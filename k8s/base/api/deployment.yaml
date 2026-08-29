@@ -54,7 +54,7 @@ spec:
                 name: flash-sale-secrets
           readinessProbe:
             httpGet:
-              path: /api/ready
+              path: /api/health
               port: 3000
             initialDelaySeconds: 3
             periodSeconds: 5

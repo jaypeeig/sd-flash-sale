@@ -195,18 +195,11 @@ const renderMarkdown = (
   return sections.filter((section): section is string => section !== undefined).join("\n\n") + "\n";
 };
 
-// k6 only recognizes a `handleSummary` export from the file it runs
-// directly, so every tests/*.ts re-exports the result of this factory
-// (`export const handleSummary = createHandleSummary("flash-sale-spike")`)
-// rather than duplicating the write-two-files logic per test. `loadProfile`
-// is the target rate + VU cap the same test file's options.ts builder
-// configured (see BuiltScenario) — omit it for a constant-vus test like
-// smoke, which has neither.
 export const createHandleSummary = (testName: string, loadProfile?: LoadProfile) => {
   return (data: SummaryData): Record<string, string> => {
     const markdown = renderMarkdown(testName, data, loadProfile);
     return {
-      [`${resultsDir}/${testName}.json`]: JSON.stringify(data, null, 2),
+      [`${resultsDir}/json/${testName}.json`]: JSON.stringify(data, null, 2),
       [`${resultsDir}/${testName}.md`]: markdown,
       stdout: markdown,
     };

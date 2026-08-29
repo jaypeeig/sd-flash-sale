@@ -26,15 +26,10 @@ const optionalNumberEnv = (name: string, fallback: number): number => {
 
 export const baseUrl = optionalEnv("BASE_URL", "http://localhost:3000/api");
 
-// Set by scripts/prepare.ts; every test but a hand-run smoke check requires it.
 export const saleId = (): string => requireEnv("SALE_ID");
 
-// Ties emails/log lines to one invocation of scripts/run.ts, so cleanup and
-// verify can find exactly the rows this run created.
 export const runId = optionalEnv("RUN_ID", "local");
 
-// Where handleSummary() writes <test>.json / <test>.md — scripts/run.ts sets
-// this to results/<RESULTS_LABEL>/
 export const resultsDir = optionalEnv("RESULTS_DIR", `results/${todayResultsLabel()}`);
 
 export const durationSeconds = (fallback: number): number =>
