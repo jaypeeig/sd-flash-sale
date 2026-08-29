@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flash-sale-migrate
+  namespace: flash-sale
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 120
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: flash-sale-ops:local
+          imagePullPolicy: IfNotPresent
+          command: ["npm", "run", "-w", "@workspace/database", "db:migrate"]
+          envFrom:
+            - configMapRef:
+                name: flash-sale-config
+            - secretRef:
+                name: flash-sale-secrets

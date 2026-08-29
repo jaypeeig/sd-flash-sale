@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flash-sale-seed
+  namespace: flash-sale
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 180
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: db-seed
+          image: flash-sale-ops:local
+          imagePullPolicy: IfNotPresent
+          command: ["npm", "run", "-w", "@workspace/database", "db:seed"]
+          envFrom:
+            - configMapRef:
+                name: flash-sale-config
+            - secretRef:
+                name: flash-sale-secrets
+      containers:
+        - name: redis-warm
+          image: flash-sale-ops:local
+          imagePullPolicy: IfNotPresent
+          command: ["npm", "run", "-w", "@workspace/redis", "redis:warm"]
+          envFrom:
+            - configMapRef:
+                name: flash-sale-config
+            - secretRef:
+                name: flash-sale-secrets
