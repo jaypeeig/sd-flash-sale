@@ -1,0 +1,25 @@
+{
+  "name": "@workspace/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "dev": "tsx watch src/main.ts",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workspace/database": "*",
+    "@workspace/queue": "*",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "oxlint": "^1.80.0",
+    "tsx": "^4.23.12",
+    "typescript": "~6.0.2"
+  }
+}
