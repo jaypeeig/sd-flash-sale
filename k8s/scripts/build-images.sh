@@ -5,15 +5,16 @@ source "$SCRIPT_DIR/lib.sh"
 cd "$SCRIPT_DIR/../.."
 
 TAG="local"
+IMAGES=("api" "web" "ops" "worker")
 
 echo "Building images..."
-docker build -f docker/api.Dockerfile -t "flash-sale-api:${TAG}" .
-docker build -f docker/web.Dockerfile -t "flash-sale-web:${TAG}" .
-docker build -f docker/ops.Dockerfile -t "flash-sale-ops:${TAG}" .
+for image in "${IMAGES[@]}"; do
+  docker build -f "docker/${image}.Dockerfile" -t "flash-sale-${image}:${TAG}" .
+done
 
 echo "Loading images into kind cluster '${CLUSTER_NAME}'..."
-kind load docker-image "flash-sale-api:${TAG}" --name "$CLUSTER_NAME"
-kind load docker-image "flash-sale-web:${TAG}" --name "$CLUSTER_NAME"
-kind load docker-image "flash-sale-ops:${TAG}" --name "$CLUSTER_NAME"
+for image in "${IMAGES[@]}"; do
+  kind load docker-image "flash-sale-${image}:${TAG}" --name "$CLUSTER_NAME"
+done
 
 echo "Images built and loaded. Next: k8s/scripts/deploy.sh"

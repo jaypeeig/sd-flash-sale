@@ -19,6 +19,14 @@ secretGenerator:
     literals:
       - POSTGRES_USER=flashsale
       - POSTGRES_PASSWORD=flashsale
+      # DATABASE_URL duplicates POSTGRES_USER/PASSWORD above — kustomize
+      # generators can't interpolate between literals, so this has to be
+      # kept in sync by hand
       - DATABASE_URL=postgresql://flashsale:flashsale@postgres:5432/flashsale
+      - RABBITMQ_DEFAULT_USER=flashsale
+      - RABBITMQ_DEFAULT_PASS=flashsale
+      # RABBITMQ_URL duplicates RABBITMQ_DEFAULT_USER/PASS above — same
+      # manual-sync caveat as DATABASE_URL.
+      - RABBITMQ_URL=amqp://flashsale:flashsale@rabbitmq:5672
     options:
       disableNameSuffixHash: true

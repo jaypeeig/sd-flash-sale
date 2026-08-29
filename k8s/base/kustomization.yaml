@@ -6,8 +6,11 @@ resources:
   - postgres/service.yaml
   - redis/statefulset.yaml
   - redis/service.yaml
+  - rabbitmq/statefulset.yaml
+  - rabbitmq/service.yaml
   - api/deployment.yaml
   - api/service.yaml
+  - worker/deployment.yaml
   - web/deployment.yaml
   - web/service.yaml
   - ingress.yaml

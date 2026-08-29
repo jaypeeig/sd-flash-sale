@@ -6,6 +6,7 @@ cd "$SCRIPT_DIR/../.."
 
 PG_LOCAL_PORT="${PG_LOCAL_PORT:-15432}"
 REDIS_LOCAL_PORT="${REDIS_LOCAL_PORT:-16379}"
+RABBITMQ_LOCAL_PORT="${RABBITMQ_LOCAL_PORT:-15673}"
 
 if ! command -v kubectl >/dev/null 2>&1; then
   echo "Missing required tool: kubectl" >&2
@@ -18,8 +19,8 @@ if ! kubectl get deployment/api -n "$NAMESPACE" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Building @workspace/database and @workspace/redis..."
-npx turbo run build --filter=@workspace/database --filter=@workspace/redis
+echo "Building @workspace/database, @workspace/redis, and @workspace/queue..."
+npx turbo run build --filter=@workspace/database --filter=@workspace/redis --filter=@workspace/queue
 
 PIDS=()
 cleanup() {
@@ -70,8 +71,17 @@ REDIS_FWD_PID="$!"
 PIDS+=("$REDIS_FWD_PID")
 wait_for_port "$REDIS_LOCAL_PORT" "$REDIS_FWD_PID" "$REDIS_FORWARD_LOG"
 
+RABBITMQ_FORWARD_LOG="/tmp/flash-sale-loadtest-rabbitmq-forward.log"
+echo "Port-forwarding rabbitmq -> localhost:${RABBITMQ_LOCAL_PORT}..."
+kubectl port-forward -n "$NAMESPACE" svc/rabbitmq "${RABBITMQ_LOCAL_PORT}:5672" \
+  >"$RABBITMQ_FORWARD_LOG" 2>&1 &
+RABBITMQ_FWD_PID="$!"
+PIDS+=("$RABBITMQ_FWD_PID")
+wait_for_port "$RABBITMQ_LOCAL_PORT" "$RABBITMQ_FWD_PID" "$RABBITMQ_FORWARD_LOG"
+
 export DATABASE_URL="postgresql://flashsale:flashsale@localhost:${PG_LOCAL_PORT}/flashsale"
 export REDIS_URL="redis://localhost:${REDIS_LOCAL_PORT}"
+export RABBITMQ_URL="amqp://flashsale:flashsale@localhost:${RABBITMQ_LOCAL_PORT}"
 
 export BASE_URL="${BASE_URL:-http://localhost:8080/api}"
 

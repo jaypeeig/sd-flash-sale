@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: flash-sale
+  labels:
+    app: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:18-alpine
+          envFrom:
+            - configMapRef:
+                name: flash-sale-config
+            - secretRef:
+                name: flash-sale-secrets
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
+                echo "waiting for postgres..."
+                sleep 2
+              done
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z rabbitmq 5672; do
+                echo "waiting for rabbitmq..."
+                sleep 2
+              done
+      containers:
+        - name: worker
+          image: flash-sale-worker:local
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: flash-sale-config
+            - secretRef:
+                name: flash-sale-secrets
+          # XXX: no probes — the worker has no HTTP surface. connect() (see
+          # apps/worker/src/main.ts) throws and exits on a broker it can't
+          # reach, which lets Kubernetes' restartPolicy act as the liveness
+          # check. A heartbeat-file-based probe would catch a wedged (but
+          # still running) process; deliberately deferred, see k8s/README.md.
+          resources:
+            requests:
+              cpu: 200m
+              memory: 128Mi
+            limits:
+              memory: 384Mi

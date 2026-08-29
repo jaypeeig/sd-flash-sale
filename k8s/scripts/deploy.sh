@@ -7,15 +7,17 @@ cd "$SCRIPT_DIR/.."
 echo "Applying manifests..."
 kubectl apply -k overlays/local
 
-echo "Waiting for postgres and redis..."
+echo "Waiting for postgres, redis, and rabbitmq..."
 kubectl rollout status statefulset/postgres -n "$NAMESPACE" --timeout=180s
 kubectl rollout status statefulset/redis -n "$NAMESPACE" --timeout=180s
+kubectl rollout status statefulset/rabbitmq -n "$NAMESPACE" --timeout=180s
 
 echo "Running database migrations..."
 run_job_to_completion flash-sale-migrate jobs/migrate-job.yaml 120s
 
-echo "Rolling out api and web..."
+echo "Rolling out api, worker, and web..."
 kubectl rollout status deployment/api -n "$NAMESPACE" --timeout=180s
+kubectl rollout status deployment/worker -n "$NAMESPACE" --timeout=180s
 kubectl rollout status deployment/web -n "$NAMESPACE" --timeout=180s
 
 echo
