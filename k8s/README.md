@@ -35,9 +35,11 @@ k8s/scripts/setup.sh           # cluster-up → build-images → deploy → seed
 ```
 
 Needs Docker, [`kind`](https://kind.sigs.k8s.io/docs/user/quick-start/#installation),
-and [`kubectl`](https://kubernetes.io/docs/tasks/tools/#kubectl) -
-`cluster-up.sh` checks for the latter two and prints an install link if
-either is missing. No Helm.
+and [`kubectl`](https://kubernetes.io/docs/tasks/tools/#kubectl) - the repo
+root's `npm install` already attempts to install these if they're missing
+(see `scripts/check-deps.sh`, via brew/apt or a checksum-verified download),
+and `cluster-up.sh` checks for `kind`/`kubectl` again before it runs and
+prints an install link if either is still missing. No Helm.
 
 Then open **http://localhost:8080/** (docs at **http://localhost:8080/docs**).
 

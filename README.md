@@ -36,11 +36,15 @@ RabbitMQ · Docker Compose · k6
 - Node.js
 - Docker + Docker Compose
 - npm
+- `kind` and `kubectl`, only if you'll deploy to the local k8s cluster (see [k8s/README.md](k8s/README.md))
 
 ### 1. Local development
 
 ```bash
 npm install
+# postinstall runs scripts/check-deps.sh, which installs any of the above
+# that are missing via an official package manager or a checksum-verified
+# download, and prints an install link for anything it can't
 
 # Copy the example env if you don't already have a local .env
 cp .env.example .env
