@@ -75,34 +75,45 @@ npm run test:e2e -- -- --reporter=tree
 
 ## Running the stress test (k6)
 
-`packages/load-test` drives the running API with [k6](https://k6.io) — native TypeScript, no build step. It needs either a local `k6` binary or Docker (falls back to `docker run grafana/k6` automatically if `k6` isn't installed).
-
-Run the API in production mode first — `nest start --watch` isn't representative of real throughput:
+Load tests target the Kubernetes cluster, not local dev. Deploy the cluster first, see [k8s/README.md](k8s/README.md).
 
 ```bash
-npm run -w @workspace/database db:up
-npm run -w api build && npm run -w api start &
+k8s/scripts/load-test.sh                     # default suite: smoke then flash-sale-spike
+k8s/scripts/load-test.sh smoke               # 1 VU, 30s, sanity check
+k8s/scripts/load-test.sh flash-sale-spike    # thundering herd on a stock limited sale
 ```
 
-Run with no arguments for the default suite (smoke first as a fail-fast gate, then flash-sale-spike), or name one test to run just that:
+The script builds the workspace, port forwards Postgres and Redis so the test can seed data and verify results, and points at the Ingress by default (`http://localhost:8080/api`), so it measures the real deployed system, load balanced across both api pods.
+
+Each run seeds a fresh sale, warms Redis, runs k6, checks the correctness invariants (no overselling, no duplicate purchases) directly against Postgres, then cleans up. Results land in `packages/load-test/results/<label>/` as a markdown summary (`<test>.md`) plus the raw metrics one level deeper (`json/<test>.json`).
+
+### Env vars
+
+| Var | What it does | Default |
+| --- | --- | --- |
+| `ARRIVAL_RATE` | Target requests per second | 1250 |
+| `RAMP_SECONDS` | Ramp up and ramp down duration, same value for both if set | 10 up, 20 down |
+| `DURATION_SECONDS` | Sustained duration at the target rate | 120 |
+| `MAX_VUS` | Max concurrent virtual users k6 can use | 5000 |
+| `STOCK` | Overrides the sale's starting stock | depends on the test |
+| `RESULTS_LABEL` | Names the results folder | today's date |
+| `EMAIL_REPEAT_SHARE` | Share of requests that reuse an existing email | 0.3 |
+| `EMAIL_REPEAT_POOL_SIZE` | Size of the reused email pool | 200 |
+| `BASE_URL` | Overrides the target URL | `http://localhost:8080/api` |
+| `PG_LOCAL_PORT` | Local port for the Postgres port forward | 15432 |
+| `REDIS_LOCAL_PORT` | Local port for the Redis port forward | 16379 |
+
+### Example: 800, 1600, 3200 req/s
 
 ```bash
-npm run load-test                       # the default suite: smoke -> flash-sale-spike
+MAX_VUS=20000 ARRIVAL_RATE=800 DURATION_SECONDS=30 STOCK=80000 RESULTS_LABEL=k8s-spike-800rps \
+  k8s/scripts/load-test.sh flash-sale-spike
 
-npm run load-test -- smoke              # 1 VU, 30s — sanity check, safe for CI
-npm run load-test -- flash-sale-spike   # thundering herd on a stock-5000 sale: 10s ramp up, 2m sustained, 20s ramp down, 1000 req/s
-npm run load-test -- capacity-ramp      # diagnostic only (not in the default suite, ~5.5 min): steps the rate through flat plateaus to find where latency actually breaks
+MAX_VUS=20000 ARRIVAL_RATE=1600 DURATION_SECONDS=30 STOCK=160000 RESULTS_LABEL=k8s-spike-1600rps \
+  k8s/scripts/load-test.sh flash-sale-spike
+
+MAX_VUS=20000 ARRIVAL_RATE=3200 DURATION_SECONDS=30 STOCK=320000 RESULTS_LABEL=k8s-spike-3200rps \
+  k8s/scripts/load-test.sh flash-sale-spike
 ```
 
-`flash-sale-spike` mixes a small pool of repeated emails into an otherwise-unique stream, so the herd produces real same-email collisions (`already_purchased`) under actual network+DB concurrency, not just stock exhaustion. Its target rate (1000 req/s) isn't arbitrary — `capacity-ramp` proved that's the last rate this Postgres pool holds cleanly (p50 ~3ms); the next plateau up, 1250 req/s, breaks hard (p50 ~2.5s). Above that, k6 itself becomes the bottleneck before the API does — its own summary calls this out with a ⚠️ if a run ever hits its VU cap while still dropping iterations, since that means the reported rate describes the load generator, not the system under test. Every knob above is tunable via env vars instead of editing code — `ARRIVAL_RATE`, `RAMP_SECONDS`, `DURATION_SECONDS` (the sustained portion), `EMAIL_REPEAT_SHARE`, `EMAIL_REPEAT_POOL_SIZE` — e.g. `ARRIVAL_RATE=200 RAMP_SECONDS=5 DURATION_SECONDS=10 npm run load-test -- flash-sale-spike` for a quick, low-intensity check.
-
-By default this targets `http://localhost:3000/api` and writes results to `packages/load-test/results/<today's date>/` (e.g. `results/2026-08-28/`) — one directory per day, shared by every test in that day's suite run. Both the target and the results directory name are overridable via env var:
-
-```bash
-BASE_URL=http://localhost:4000/api npm run load-test -- smoke   # point at a different running API
-RESULTS_LABEL=redis npm run load-test                            # write to results/redis/ instead
-```
-
-`RESULTS_LABEL` names a run explicitly instead of dating it — e.g. once caching lands, `RESULTS_LABEL=redis npm run load-test` produces `results/redis/` to diff against a committed baseline.
-
-Each run tags and cleans up its own product/sale/purchases in the dev database (never a truncate) and, after k6 exits, re-checks the correctness invariants (no overselling, no duplicate purchases) directly against Postgres. Results land in the results directory above as a markdown summary (`<test>.md`) plus the full raw metrics one level deeper (`json/<test>.json`), so the human-readable report isn't buried next to the much larger file it's derived from; `results/postgres-baseline-0/`, `-1/`, and `-2/` are committed as reference baselines (an unlabeled run never writes into them).
+`STOCK` is set well above the expected request volume so the run measures real purchase throughput, not the cheap sold out response. `MAX_VUS` is raised from the 5000 default so k6 itself does not become the bottleneck before the API does.
