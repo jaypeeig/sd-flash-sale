@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": [
+    "src/index.ts",
+    "src/client.ts",
+    "src/client.types.ts",
+    "src/connection.ts",
+    "src/constants.ts",
+    "src/drain.ts",
+    "src/env.ts",
+    "src/publish.ts",
+    "src/queue-depth.ts"
+  ],
+  "exclude": ["src/load-env.ts", "src/**/*.test.ts"]
+}

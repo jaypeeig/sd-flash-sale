@@ -1,0 +1,27 @@
+{
+  "name": "@workspace/queue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "rabbitmq:up": "docker compose -f ../../docker-compose.yml --project-directory ../.. up -d --wait rabbitmq",
+    "rabbitmq:down": "docker compose -f ../../docker-compose.yml --project-directory ../.. down rabbitmq",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "amqplib": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "dotenv": "^17.4.2",
+    "oxlint": "^1.80.0",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.11"
+  }
+}
