@@ -6,14 +6,6 @@ cd "$SCRIPT_DIR/.."
 
 INGRESS_NGINX_VERSION="controller-v1.11.3"
 
-require() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    echo "Missing required tool: $1" >&2
-    echo "  $2" >&2
-    exit 1
-  fi
-}
-
 require kind "Install: https://kind.sigs.k8s.io/docs/user/quick-start/#installation"
 require kubectl "Install: https://kubernetes.io/docs/tasks/tools/#kubectl"
 

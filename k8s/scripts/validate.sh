@@ -1,17 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+cd "$SCRIPT_DIR/.."
 
-if ! command -v kubectl >/dev/null 2>&1; then
-  echo "Missing required tool: kubectl" >&2
-  echo "  Install: https://kubernetes.io/docs/tasks/tools/#kubectl" >&2
-  exit 1
-fi
-
-if ! command -v kubeconform >/dev/null 2>&1; then
-  echo "Missing required tool: kubeconform" >&2
-  echo "  Install: https://github.com/yannh/kubeconform#installation" >&2
-  exit 1
-fi
+require kubectl "https://kubernetes.io/docs/tasks/tools/#kubectl"
+require kubeconform "https://github.com/yannh/kubeconform#installation"
 
 kubectl kustomize overlays/local | kubeconform -strict -summary -

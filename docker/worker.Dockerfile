@@ -7,7 +7,8 @@ COPY package.json package-lock.json ./
 COPY apps/worker/package.json apps/worker/package.json
 COPY packages/database/package.json packages/database/package.json
 COPY packages/queue/package.json packages/queue/package.json
-RUN npm ci
+# XXX: --ignore-scripts skips root's postinstall (scripts/check-deps.sh)
+RUN npm ci --ignore-scripts
 
 FROM deps AS build
 COPY . .
